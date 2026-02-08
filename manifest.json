@@ -1,5 +1,5 @@
 {
-    "name": "test!",
+    "name": "test!!",
     "description": "this is a very testy extension",
     "version": "99.9",
     "manifest_version": 3,
@@ -8,6 +8,8 @@
         "default_icon": "icon.png"
     },
    "permissions": [
-    "management"
+    "management",
+    "theme",
+    "storage"
   ]
 }
