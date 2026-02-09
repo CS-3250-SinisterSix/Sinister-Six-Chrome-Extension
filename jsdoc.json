@@ -1,0 +1,19 @@
+{
+  "source": {
+    "include": ["src"],
+    "includePattern": "\\.(jsx?|tsx?)$",
+    "excludePattern": "(node_modules|dist|build|docs)"
+  },
+  "opts": {
+    "destination": "docs/api",
+    "recurse": true
+  },
+  "plugins": ["plugins/markdown"],
+  "templates": {
+    "cleverLinks": true,
+    "monospaceLinks": true,
+    "default": {
+      "outputSourceFiles": true
+    }
+  }
+}
