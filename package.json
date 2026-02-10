@@ -1,0 +1,29 @@
+{
+  "name": "sinister-six-chrome-extension",
+  "version": "1.0.0",
+  "description": "This is our awesome group 6 repository for our CS 3250 assignments! We can update the name and description once we settle in.",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,ts,json,md,css,html}\"",
+    "format:check": "prettier --check \"**/*.{js,ts,json,md,css,html}\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CS-3250-SinisterSix/Sinister-Six-Chrome-Extension.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CS-3250-SinisterSix/Sinister-Six-Chrome-Extension/issues"
+  },
+  "homepage": "https://github.com/CS-3250-SinisterSix/Sinister-Six-Chrome-Extension#readme",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.3.0",
+    "prettier": "^3.8.1"
+  }
+}

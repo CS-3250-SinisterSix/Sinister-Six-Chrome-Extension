@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: themes.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: themes.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @fileoverview Theme management module for the Chrome extension.
+ * Provides APIs for applying, reverting, and managing browser themes.
+ * @module themes
+ */
+
+/**
+ * @typedef {Object} ThemeColors
+ * @property {string} primary - Primary accent color (hex format)
+ * @property {string} secondary - Secondary accent color (hex format)
+ * @property {string} background - Background color (hex format)
+ * @property {string} text - Text color (hex format)
+ */
+
+/**
+ * @typedef {Object} Theme
+ * @property {string} id - Unique theme identifier
+ * @property {string} name - Human-readable theme name
+ * @property {ThemeColors} colors - Theme color palette
+ * @property {boolean} isDark - Whether this is a dark theme
+ */
+
+/**
+ * @typedef {Object} ThemeApplyResult
+ * @property {boolean} success - Whether the theme was applied successfully
+ * @property {string} themeId - The ID of the applied theme
+ * @property {string} [previousThemeId] - The ID of the previously active theme
+ * @property {string} [error] - Error message if application failed
+ */
+
+/**
+ * Default theme configuration used when no theme is active.
+ * @constant {Theme}
+ */
+export const DEFAULT_THEME = {
+  id: 'default',
+  name: 'Default',
+  colors: {
+    primary: '#1a73e8',
+    secondary: '#174ea6',
+    background: '#ffffff',
+    text: '#202124'
+  },
+  isDark: false
+};
+
+/**
+ * Currently active theme.
+ * @type {Theme|null}
+ * @private
+ */
+let currentTheme = null;
+
+/**
+ * Registered theme change listeners.
+ * @type {Set&lt;Function>}
+ * @private
+ */
+const themeListeners = new Set();
+
+/**
+ * Applies a theme to the browser.
+ *
+ * This function sets the specified theme as the active theme and updates
+ * all visual elements accordingly. If the theme application fails, the
+ * previous theme state is preserved.
+ *
+ * @param {Theme} theme - The theme object to apply
+ * @returns {ThemeApplyResult} Result object indicating success or failure
+ * @throws {TypeError} If the theme parameter is not a valid Theme object
+ *
+ * @example
+ * // Apply a custom dark theme
+ * const darkTheme = {
+ *   id: 'dark-mode',
+ *   name: 'Dark Mode',
+ *   colors: {
+ *     primary: '#bb86fc',
+ *     secondary: '#03dac6',
+ *     background: '#121212',
+ *     text: '#e1e1e1'
+ *   },
+ *   isDark: true
+ * };
+ *
+ * const result = applyTheme(darkTheme);
+ * if (result.success) {
+ *   console.log(`Applied theme: ${result.themeId}`);
+ * }
+ */
+export function applyTheme(theme) {
+  if (!theme || typeof theme !== 'object') {
+    throw new TypeError('Theme must be a valid object');
+  }
+
+  if (!theme.id || typeof theme.id !== 'string') {
+    throw new TypeError('Theme must have a valid string id');
+  }
+
+  const previousThemeId = currentTheme?.id;
+
+  try {
+    currentTheme = { ...theme };
+    notifyListeners(currentTheme);
+
+    return {
+      success: true,
+      themeId: theme.id,
+      previousThemeId
+    };
+  } catch (error) {
+    return {
+      success: false,
+      themeId: theme.id,
+      previousThemeId,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Reverts to the default theme.
+ *
+ * This function removes any custom theme and restores the browser to its
+ * default appearance. All theme-related customizations are cleared.
+ *
+ * @returns {ThemeApplyResult} Result object indicating success or failure
+ *
+ * @example
+ * // Revert to default after using a custom theme
+ * const result = revertTheme();
+ * if (result.success) {
+ *   console.log('Reverted to default theme');
+ * }
+ */
+export function revertTheme() {
+  const previousThemeId = currentTheme?.id;
+
+  try {
+    currentTheme = { ...DEFAULT_THEME };
+    notifyListeners(currentTheme);
+
+    return {
+      success: true,
+      themeId: DEFAULT_THEME.id,
+      previousThemeId
+    };
+  } catch (error) {
+    return {
+      success: false,
+      themeId: DEFAULT_THEME.id,
+      previousThemeId,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Gets the currently active theme.
+ *
+ * Returns a copy of the current theme object to prevent external modification.
+ * If no theme has been applied, returns the default theme.
+ *
+ * @returns {Theme} A copy of the currently active theme
+ *
+ * @example
+ * // Check if dark mode is active
+ * const theme = getCurrentTheme();
+ * if (theme.isDark) {
+ *   console.log('Dark mode is enabled');
+ * }
+ */
+export function getCurrentTheme() {
+  if (!currentTheme) {
+    return { ...DEFAULT_THEME };
+  }
+  return { ...currentTheme };
+}
+
+/**
+ * Checks whether a specific theme is currently active.
+ *
+ * @param {string} themeId - The theme ID to check
+ * @returns {boolean} True if the specified theme is active
+ * @throws {TypeError} If themeId is not a string
+ */
+export function isThemeActive(themeId) {
+  if (typeof themeId !== 'string') {
+    throw new TypeError('themeId must be a string');
+  }
+
+  return currentTheme?.id === themeId;
+}
+
+/**
+ * Validates a theme object structure.
+ *
+ * Checks that the provided object has all required properties with correct
+ * types. Does not validate color format beyond checking they are strings.
+ *
+ * @param {*} theme - The value to validate as a theme
+ * @returns {boolean} True if the theme object is valid
+ */
+export function isValidTheme(theme) {
+  if (!theme || typeof theme !== 'object') {
+    return false;
+  }
+
+  if (typeof theme.id !== 'string' || theme.id.length === 0) {
+    return false;
+  }
+
+  if (typeof theme.name !== 'string' || theme.name.length === 0) {
+    return false;
+  }
+
+  if (typeof theme.isDark !== 'boolean') {
+    return false;
+  }
+
+  if (!theme.colors || typeof theme.colors !== 'object') {
+    return false;
+  }
+
+  const requiredColors = ['primary', 'secondary', 'background', 'text'];
+  for (const colorKey of requiredColors) {
+    if (typeof theme.colors[colorKey] !== 'string') {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Registers a callback function to be invoked when the theme changes.
+ *
+ * The callback receives the new theme object as its only argument.
+ * Multiple listeners can be registered and will be called in registration order.
+ *
+ * @param {Function} callback - Function to call when theme changes
+ * @returns {Function} Unsubscribe function to remove the listener
+ * @throws {TypeError} If callback is not a function
+ */
+export function onThemeChange(callback) {
+  if (typeof callback !== 'function') {
+    throw new TypeError('Callback must be a function');
+  }
+
+  themeListeners.add(callback);
+
+  return function unsubscribe() {
+    themeListeners.delete(callback);
+  };
+}
+
+/**
+ * Gets the number of registered theme change listeners.
+ *
+ * Useful for debugging and testing purposes.
+ *
+ * @returns {number} The count of active theme listeners
+ */
+export function getListenerCount() {
+  return themeListeners.size;
+}
+
+/**
+ * Removes all registered theme change listeners.
+ *
+ * This should typically only be used during cleanup or testing.
+ *
+ * @returns {void}
+ */
+export function clearAllListeners() {
+  themeListeners.clear();
+}
+
+/**
+ * Creates a theme object from a color palette.
+ *
+ * Generates a complete Theme object with auto-detection of dark mode
+ * based on the background color luminance.
+ *
+ * @param {string} id - Unique identifier for the theme
+ * @param {string} name - Human-readable name for the theme
+ * @param {ThemeColors} colors - Color palette for the theme
+ * @returns {Theme} A complete theme object
+ * @throws {TypeError} If required parameters are missing or invalid
+ */
+export function createTheme(id, name, colors) {
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new TypeError('id must be a non-empty string');
+  }
+
+  if (typeof name !== 'string' || name.length === 0) {
+    throw new TypeError('name must be a non-empty string');
+  }
+
+  if (!colors || typeof colors !== 'object') {
+    throw new TypeError('colors must be a valid ThemeColors object');
+  }
+
+  const isDark = isColorDark(colors.background);
+
+  return {
+    id,
+    name,
+    colors: { ...colors },
+    isDark
+  };
+}
+
+/**
+ * Determines if a hex color is considered "dark".
+ *
+ * Uses relative luminance calculation to determine if the color
+ * would require light text for adequate contrast.
+ *
+ * @param {string} hexColor - Color in hex format (e.g., '#ffffff')
+ * @returns {boolean} True if the color is dark
+ * @private
+ */
+function isColorDark(hexColor) {
+  if (typeof hexColor !== 'string' || !hexColor.startsWith('#')) {
+    return false;
+  }
+
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Calculate relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  return luminance &lt; 0.5;
+}
+
+/**
+ * Notifies all registered listeners of a theme change.
+ *
+ * @param {Theme} theme - The new theme
+ * @returns {void}
+ * @private
+ */
+function notifyListeners(theme) {
+  for (const listener of themeListeners) {
+    try {
+      listener(theme);
+    } catch (error) {
+      console.error('Theme listener threw an error:', error);
+    }
+  }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-themes.html">themes</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Sun Feb 08 2026 20:51:52 GMT-0700 (Mountain Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
