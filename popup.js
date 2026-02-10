@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const button = document.getElementById("myButton");
+  const button2 = document.getElementById("button2");
   const title = document.getElementById("title");
   const text = document.getElementById("text2");
 
@@ -10,38 +11,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
   button.addEventListener("click", async () => {
     const extensions = await chrome.management.getAll();
+    var disabledExtension = null;
+    for (let i = 0; i < extensions.length; i++) {
+      if (extensions[i].type === "theme" && !extensions[i].enabled) {
+        disabledExtension = extensions[i];
+      }
+    }
 
-    // Example: find the first enabled extension
-    const enabledExtension = extensions.find(
+    var enabledExtension = extensions.find(
       (ext) => ext.type === "theme" && ext.enabled,
     );
 
-    const disabledExtension = extensions.find(
-      (ext) => ext.type === "theme" && ext.disabled,
-    );
+    if (disabledExtension == null) {
+      disabledExtension = enabledExtension;
+      chrome.management.setEnabled(enabledExtension.id, false, () => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else {
+          console.log("Extension enabled!");
+        }
+      });
+      enabledExtension = null;
+    } else {
+      enabledExtension = disabledExtension;
+      chrome.management.setEnabled(disabledExtension.id, true, () => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else {
+          console.log("Extension enabled!");
+        }
+      });
+      disabledExtension = null;
+    }
 
     title.textContent = enabledExtension
       ? enabledExtension.name
       : "No enabled themes found";
 
-    text2.textContent = enabledExtension
-      ? enabledExtension.version
+    text.textContent = enabledExtension
+      ? disabledExtension.name
       : "No disabled themes found";
-
-    chrome.theme.update(
-      {
-        colors: {
-          frame: [255, 0, 0], // RGB for red
-          toolbar: [255, 200, 200], // optional
-          tab_text: [255, 255, 255],
-        },
-        images: {}, // optional
-        tints: {}, // optional
-        properties: {}, // optional
-      },
-      () => {
-        console.log("Theme applied!");
-      },
-    );
   });
 });
