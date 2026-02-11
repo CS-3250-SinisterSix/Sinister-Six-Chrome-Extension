@@ -1,0 +1,17 @@
+{
+    "name": "sinister-six-chrome-extension",
+    "version": "1.0.0",
+    "description": "CS 3250 Group 6 Chrome Extension",
+    "scripts": {
+      "lint": "eslint . --ext .js,.jsx",
+      "test": "jest",
+      "build": "node build.js",
+      "dev": "node build.js --watch"
+    },
+    "devDependencies": {
+      "eslint": "^8.57.0",
+      "jest": "^29.7.0"
+    },
+    "keywords": ["chrome-extension"],
+    "license": "GPL-3.0"
+  }
