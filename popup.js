@@ -29,16 +29,18 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     if (disabledExtension == null) {
+      //disable theme if there is currently a theme enabled
       disabledExtension = enabledExtension;
       chrome.management.setEnabled(enabledExtension.id, false, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
         } else {
-          console.log("Extension enabled!");
+          console.log("Extension disabled!");
         }
       });
       enabledExtension = null;
     } else {
+      //enable theme if the installed theme is inactive
       enabledExtension = disabledExtension;
       chrome.management.setEnabled(disabledExtension.id, true, () => {
         if (chrome.runtime.lastError) {
@@ -48,29 +50,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
       disabledExtension = null;
-      for (let i = 0; i < extensions.length; i++) {
-        if (extensions[i].type === "theme" && !extensions[i].enabled) {
-          disabledExtension2 = extensions[0];
-          console.log(extensions[0]);
-        }
-      }
     }
 
-    title.textContent = enabledExtension
+
+    title.textContent = enabledExtension 
       ? enabledExtension.name
       : "No enabled themes found";
-
-    text.textContent = disabledExtension
-      ? disabledExtension.name
-      : "No disabled themes found";
   });
   button2.addEventListener("click", async () => {
     window.open(themeLink, "_blank", "noopener");
-
-    for (let i = 0; i < extensions.length; i++) {
-      if (extensions[i].type === "theme" && !extensions[i].enabled) {
-        disabledExtension = extensions[i];
-      }
-    }
   });
 });
