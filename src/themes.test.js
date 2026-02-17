@@ -4,129 +4,20 @@ import {
   applyTheme,
   revertTheme,
   getCurrentTheme,
-  DEFAULT_THEME
-} from './themes.js';
+  DEFAULT_THEME,
+  isValidTheme,
+  isThemeActive,
+  createTheme,
+  onThemeChange,
+  getListenerCount,
+  clearAllListeners,
+} from "./themes.js";
 
-
-/*
-Test 1: Default theme exists
-*/
-test('getCurrentTheme returns default theme initially', () => {
-  const theme = getCurrentTheme();
-
-  expect(theme.id).toBe(DEFAULT_THEME.id);
-  expect(theme.name).toBe(DEFAULT_THEME.name);
-});
-
-
-/*
-Test 2: applyTheme changes the theme
-*/
-test('applyTheme sets a new theme', () => {
-
-  const newTheme = {
-    id: 'dark',
-    name: 'Dark Theme',
-    colors: {
-      primary: '#000000',
-      secondary: '#111111',
-      background: '#000000',
-      text: '#ffffff'
-    },
-    isDark: true
-  };
-
-  applyTheme(newTheme);
-
-  const current = getCurrentTheme();
-
-  expect(current.id).toBe('dark');
-  expect(current.name).toBe('Dark Theme');
-});
-
-
-/*
-Test 3: revertTheme restores default theme
-*/
-test('revertTheme restores default theme', () => {
-
-  revertTheme();
-
-  const theme = getCurrentTheme();
-
-  expect(theme.id).toBe(DEFAULT_THEME.id);
-});
-
-import { isValidTheme, isThemeActive, createTheme } from "./themes.js";
-
-// Test 4: applyTheme should throw on bad input
-test("applyTheme throws if theme is null", () => {
-  expect(() => applyTheme(null)).toThrow(TypeError);
-});
-
-// Test 5: isThemeActive works
-test("isThemeActive returns true only for active theme id", () => {
-  const t = {
-    id: "blue",
-    name: "Blue Theme",
-    colors: {
-      primary: "#0000ff",
-      secondary: "#0000aa",
-      background: "#ffffff",
-      text: "#000000",
-    },
-    isDark: false,
-  };
-
-  applyTheme(t);
-
-  expect(isThemeActive("blue")).toBe(true);
-  expect(isThemeActive("not-blue")).toBe(false);
-});
-
-// Test 6: createTheme auto-detects isDark from background
-test("createTheme sets isDark true for dark background and false for light background", () => {
-  const darkTheme = createTheme("dark", "Dark", {
-    primary: "#ffffff",
-    secondary: "#ffffff",
-    background: "#000000",
-    text: "#ffffff",
-  });
-
-  const lightTheme = createTheme("light", "Light", {
-    primary: "#000000",
-    secondary: "#000000",
-    background: "#ffffff",
-    text: "#000000",
-  });
-
-  expect(darkTheme.isDark).toBe(true);
-  expect(lightTheme.isDark).toBe(false);
-});
-
-import { onThemeChange, getListenerCount, clearAllListeners } from "./themes.js";
-
-test("onThemeChange registers a listener and returns an unsubscribe function", () => {
-  clearAllListeners();
-
-  const cb = jest.fn();
-  const unsubscribe = onThemeChange(cb);
-
-  expect(getListenerCount()).toBe(1);
-
-  unsubscribe();
-  expect(getListenerCount()).toBe(0);
-});
-
-test("listener is called when applyTheme is used", () => {
-  clearAllListeners();
-
-  const cb = jest.fn();
-  onThemeChange(cb);
-
-  const theme = {
-    id: "listener-test",
-    name: "Listener Test",
+/** Helper: build a valid Theme object with optional overrides */
+function makeTheme(overrides = {}) {
+  return {
+    id: "t",
+    name: "Theme",
     colors: {
       primary: "#111111",
       secondary: "#222222",
@@ -134,21 +25,238 @@ test("listener is called when applyTheme is used", () => {
       text: "#000000",
     },
     isDark: false,
+    ...overrides,
+    // allow overriding nested colors cleanly
+    colors: { ...(overrides.colors ?? {}), ...(overrides.colors ? overrides.colors : {}) },
   };
+}
 
-  applyTheme(theme);
+// Keep listeners clean between tests (module state)
+beforeEach(() => {
+  clearAllListeners();
+});
 
+test("getCurrentTheme returns default theme (normal case)", () => {
+  // In many tests we will have touched module state, so this test is not intended
+  // to verify the 'currentTheme === null' branch; that's covered separately below.
+  const theme = getCurrentTheme();
+  expect(theme.id).toBe(DEFAULT_THEME.id);
+  expect(theme.name).toBe(DEFAULT_THEME.name);
+});
+
+test("applyTheme sets a new theme and getCurrentTheme returns a copy", () => {
+  const newTheme = makeTheme({ id: "dark", name: "Dark Theme", isDark: true, colors: { background: "#000000", text: "#ffffff" } });
+
+  applyTheme(newTheme);
+
+  const current1 = getCurrentTheme();
+  expect(current1.id).toBe("dark");
+  expect(current1.name).toBe("Dark Theme");
+
+  // immutability: returned object is a copy
+  current1.name = "Hacked";
+  expect(getCurrentTheme().name).toBe("Dark Theme");
+});
+
+test("revertTheme restores default theme", () => {
+  applyTheme(makeTheme({ id: "custom", name: "Custom" }));
+
+  const result = revertTheme();
+  expect(result.success).toBe(true);
+  expect(result.themeId).toBe(DEFAULT_THEME.id);
+
+  expect(getCurrentTheme().id).toBe(DEFAULT_THEME.id);
+});
+
+test("applyTheme returns previousThemeId when a theme was already active", () => {
+  applyTheme(makeTheme({ id: "a", name: "A" }));
+  const result = applyTheme(makeTheme({ id: "b", name: "B" }));
+
+  expect(result.success).toBe(true);
+  expect(result.themeId).toBe("b");
+  expect(result.previousThemeId).toBe("a");
+});
+
+test("revertTheme returns previousThemeId when reverting from a custom theme", () => {
+  applyTheme(makeTheme({ id: "custom", name: "Custom" }));
+  const result = revertTheme();
+
+  expect(result.success).toBe(true);
+  expect(result.themeId).toBe(DEFAULT_THEME.id);
+  expect(result.previousThemeId).toBe("custom");
+});
+
+test("isThemeActive returns true only for active theme id", () => {
+  applyTheme(makeTheme({ id: "blue", name: "Blue Theme" }));
+
+  expect(isThemeActive("blue")).toBe(true);
+  expect(isThemeActive("not-blue")).toBe(false);
+});
+
+test("createTheme auto-detects isDark for dark/light backgrounds", () => {
+  const dark = createTheme("dark", "Dark", {
+    primary: "#ffffff",
+    secondary: "#ffffff",
+    background: "#000000",
+    text: "#ffffff",
+  });
+
+  const light = createTheme("light", "Light", {
+    primary: "#000000",
+    secondary: "#000000",
+    background: "#ffffff",
+    text: "#000000",
+  });
+
+  expect(dark.isDark).toBe(true);
+  expect(light.isDark).toBe(false);
+});
+
+test("createTheme sets isDark false when background is invalid format", () => {
+  const theme = createTheme("bad-bg", "Bad BG", {
+    primary: "#111111",
+    secondary: "#222222",
+    background: "white", // invalid hex format (doesn't start with '#')
+    text: "#000000",
+  });
+
+  expect(theme.isDark).toBe(false);
+});
+
+test("onThemeChange registers listener, calls it on applyTheme, and unsubscribe works", () => {
+  const cb = jest.fn();
+  const unsubscribe = onThemeChange(cb);
+
+  expect(getListenerCount()).toBe(1);
+
+  applyTheme(makeTheme({ id: "listener-test" }));
   expect(cb).toHaveBeenCalledTimes(1);
   expect(cb).toHaveBeenCalledWith(expect.objectContaining({ id: "listener-test" }));
+
+  unsubscribe();
+  expect(getListenerCount()).toBe(0);
 });
 
 test("clearAllListeners removes all listeners", () => {
-  clearAllListeners();
-
   onThemeChange(() => {});
   onThemeChange(() => {});
   expect(getListenerCount()).toBe(2);
 
   clearAllListeners();
   expect(getListenerCount()).toBe(0);
+});
+
+test("listener errors do not stop other listeners", () => {
+  const bad = () => {
+    throw new Error("boom");
+  };
+  const good = jest.fn();
+
+  onThemeChange(bad);
+  onThemeChange(good);
+
+  applyTheme(makeTheme({ id: "t2" }));
+  expect(good).toHaveBeenCalledTimes(1);
+});
+
+test("validation: throws TypeError on invalid inputs", () => {
+  expect(() => applyTheme(null)).toThrow(TypeError);
+  expect(() => applyTheme({})).toThrow(TypeError);
+  expect(() => applyTheme({ id: 123 })).toThrow(TypeError);
+
+  expect(() => isThemeActive(123)).toThrow(TypeError);
+  expect(() => onThemeChange(null)).toThrow(TypeError);
+
+  expect(() => createTheme("", "Name", {})).toThrow(TypeError);
+  expect(() => createTheme("id", "", {})).toThrow(TypeError);
+  expect(() => createTheme("id", "Name", null)).toThrow(TypeError);
+});
+
+test("isValidTheme covers all validation branches", () => {
+  const valid = {
+    id: "ok",
+    name: "OK",
+    isDark: false,
+    colors: {
+      primary: "#111111",
+      secondary: "#222222",
+      background: "#ffffff",
+      text: "#000000",
+    },
+  };
+
+  // Hits: if (!theme || typeof theme !== 'object')
+  expect(isValidTheme(null)).toBe(false);
+
+  // Hits: invalid id
+  expect(isValidTheme({ ...valid, id: "" })).toBe(false);
+
+  // Hits: invalid name
+  expect(isValidTheme({ ...valid, name: "" })).toBe(false);
+
+  // Hits: invalid isDark type
+  expect(isValidTheme({ ...valid, isDark: "false" })).toBe(false);
+
+  // Hits: missing/invalid colors object
+  expect(isValidTheme({ ...valid, colors: null })).toBe(false);
+
+  // Hits: loop check (non-string color value)
+  expect(
+    isValidTheme({
+      ...valid,
+      colors: { ...valid.colors, text: 123 },
+    })
+  ).toBe(false);
+
+  // Hits: return true
+  expect(isValidTheme(valid)).toBe(true);
+});
+
+
+test("applyTheme catch path: returns success:false when internal error occurs", () => {
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {
+    throw new Error("console.error failure");
+  });
+
+  try {
+    onThemeChange(() => {
+      throw new Error("listener boom");
+    });
+
+    const result = applyTheme(makeTheme({ id: "x", name: "X" }));
+    expect(result.success).toBe(false);
+    expect(result.themeId).toBe("x");
+    expect(result.error).toBeDefined();
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+test("revertTheme catch path: returns success:false when internal error occurs", () => {
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {
+    throw new Error("console.error failure");
+  });
+
+  try {
+    onThemeChange(() => {
+      throw new Error("listener boom");
+    });
+
+    const result = revertTheme();
+    expect(result.success).toBe(false);
+    expect(result.themeId).toBe(DEFAULT_THEME.id);
+    expect(result.error).toBeDefined();
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+/**
+ * Coverage-only: cover getCurrentTheme() branch when currentTheme is null.
+ * Must use fresh module import to reset module-level state.
+ */
+test("getCurrentTheme returns default when currentTheme is null (fresh module)", async () => {
+  jest.resetModules();
+  const mod = await import("./themes.js");
+  expect(mod.getCurrentTheme().id).toBe(mod.DEFAULT_THEME.id);
 });
