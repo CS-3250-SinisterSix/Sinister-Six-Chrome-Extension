@@ -32,12 +32,12 @@ jobs:
       # Step 4: Run linting
       - name: Run ESLint
         run: npm run lint
-        continue-on-error: true  # Don't fail the build yet
+        
       
       # Step 5: Run tests
       - name: Run tests
         run: npm test
-        continue-on-error: true  # Don't fail the build yet
+        
       
       # Step 6: Validate manifest.json
       - name: Validate manifest.json
@@ -71,7 +71,7 @@ jobs:
       
       - name: Build extension
         run: npm run build
-        continue-on-error: true
+        
       
       # Step 7: Upload build artifacts
       - name: Upload build artifacts
