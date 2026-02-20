@@ -9,7 +9,7 @@
         "dev": "node build.js --watch"
     },
     "devDependencies": {
-        "@eslint/js": "^10.0.1",
+        
         "eslint": "^8.57.1",
         "globals": "^17.3.0",
         "jest": "^29.7.0"
