@@ -1,15 +1,22 @@
-const fs = require('fs');
-const path = require('path');
+import { existsSync, mkdirSync, copyFileSync } from 'fs';
+import { join } from 'path';
+import path from 'node:path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+
+const __dirname = path.dirname(__filename);
 
 // Create dist directory
-const distDir = path.join(__dirname, 'dist');
-if (!fs.existsSync(distDir)) {
-  fs.mkdirSync(distDir);
+
+const distDir = join(__dirname, 'dist');
+if (!existsSync(distDir)) {
+  mkdirSync(distDir);
 }
 
 // Copy manifest.json
-if (fs.existsSync('manifest.json')) {
-  fs.copyFileSync('manifest.json', path.join(distDir, 'manifest.json'));
+if (existsSync('manifest.json')) {
+  copyFileSync('manifest.json', join(distDir, 'manifest.json'));
   console.log(' Copied manifest.json');
 }
 
