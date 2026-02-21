@@ -23,22 +23,27 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    let enabledExtension = extensions.find(
+    const enabledExtension = extensions.find(
       (ext) => ext.type === "theme" && ext.enabled,
     );
 
+    // We'll decide what to show in the UI without "nulling out" vars
+    let themeToDisplay;
+
     if (disabledExtension == null) {
-      //disable theme if there is currently a theme enabled
-      chrome.management.setEnabled(enabledExtension.id, false, () => {
-        if (chrome.runtime.lastError) {
-          console.error(chrome.runtime.lastError);
-        } else {
-          console.log("Extension disabled!");
-        }
-      });
+      // disable theme if there is currently a theme enabled
+      if (enabledExtension) {
+        chrome.management.setEnabled(enabledExtension.id, false, () => {
+          if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError);
+          } else {
+            console.log("Extension disabled!");
+          }
+        });
+      }
+      themeToDisplay = null;
     } else {
-      //enable theme if the installed theme is inactive
-      enabledExtension = disabledExtension;
+      // enable theme if the installed theme is inactive
       chrome.management.setEnabled(disabledExtension.id, true, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
@@ -46,14 +51,15 @@ document.addEventListener("DOMContentLoaded", () => {
           console.log("Extension enabled!");
         }
       });
+      themeToDisplay = disabledExtension;
     }
 
-
-    title.textContent = enabledExtension 
-      ? enabledExtension.name
+    title.textContent = themeToDisplay
+      ? themeToDisplay.name
       : "No enabled themes found";
   });
-  button2.addEventListener("click", async () => {
+
+  button2.addEventListener("click", () => {
     window.open(themeLink, "_blank", "noopener");
   });
 });
