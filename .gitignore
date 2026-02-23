@@ -9,3 +9,25 @@ coverage/
 Thumbs.db
 .vscode/
 .idea/
+
+# Build outputs
+dist/
+build/
+
+# Generated documentation
+docs/api/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
