@@ -7,16 +7,25 @@
       "test": "jest --passWithNoTests",
       "build": "node build.js",
       "dev": "node build.js --watch",
-      "docs:api": "jsdoc -c jsdoc.json"
+      "docs:api": "jsdoc -c jsdoc.json",
+      "prepare": "husky"
     },
     "devDependencies": {
       "@eslint/js": "^10.0.1",
       "eslint": "^10.0.0",
       "globals": "^17.3.0",
+      "husky": "^9.1.7",
       "jest": "^29.7.0",
-      "jsdoc": "^4.0.5"
+      "jsdoc": "^4.0.5",
+      "lint-staged": "^15.2.0"
     },
-    "keywords": ["chrome-extension"],
+    "lint-staged": {
+      "*.{js,ts,jsx,tsx}": [
+        "eslint --fix"
+      ]
+    },
+    "keywords": [
+      "chrome-extension"
+    ],
     "license": "GPL-3.0"
   }
-  
