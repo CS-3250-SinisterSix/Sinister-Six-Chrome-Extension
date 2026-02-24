@@ -1,3 +1,5 @@
+import { makeLink } from "./src/themes.js";
+
 document.addEventListener("DOMContentLoaded", async () => {
   const button = document.getElementById("myButton");
   const link = document.getElementById("link");
@@ -5,13 +7,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const add = document.getElementById("add");
   const title = document.getElementById("title");
   const text = document.getElementById("text2");
-
-  const makeLink = (name, ID) => {
-    const formattedName = name.replaceAll(" ", "-");
-    return (
-      "https://chromewebstore.google.com/detail/" + formattedName + "/" + ID
-    );
-  };
 
   if (!button || !title) {
     console.error("Element not found");
