@@ -2,7 +2,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const button = document.getElementById("myButton");
   const button2 = document.getElementById("link");
   const title = document.getElementById("title");
-  const text = document.getElementById("text2");
 
   const themeLink =
     "https://chromewebstore.google.com/detail/pikmin-theme/bpmkhflicgoklmheccmojdbipcbmhcjg?utm_source=ext_app_menu";
@@ -15,7 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
   button.addEventListener("click", async () => {
     const extensions = await chrome.management.getAll();
 
-    var disabledExtension = null;
+    let disabledExtension = null;
+
     for (let i = 0; i < extensions.length; i++) {
       if (extensions[i].type === "theme" && !extensions[i].enabled) {
         disabledExtension = extensions[i];
@@ -24,40 +24,39 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    var enabledExtension = extensions.find(
+    const enabledExtension = extensions.find(
       (ext) => ext.type === "theme" && ext.enabled,
     );
 
+    if (!enabledExtension && !disabledExtension) {
+      title.textContent = "No themes found";
+      return;
+    }
+
     if (disabledExtension == null) {
-      //disable theme if there is currently a theme enabled
-      disabledExtension = enabledExtension;
+      // Disable currently enabled theme
       chrome.management.setEnabled(enabledExtension.id, false, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
         } else {
           console.log("Extension disabled!");
+          title.textContent = "No enabled themes found";
         }
       });
-      enabledExtension = null;
     } else {
-      //enable theme if the installed theme is inactive
-      enabledExtension = disabledExtension;
+      // Enable inactive installed theme
       chrome.management.setEnabled(disabledExtension.id, true, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
         } else {
           console.log("Extension enabled!");
+          title.textContent = disabledExtension.name;
         }
       });
-      disabledExtension = null;
     }
-
-
-    title.textContent = enabledExtension 
-      ? enabledExtension.name
-      : "No enabled themes found";
   });
-  button2.addEventListener("click", async () => {
+
+  button2.addEventListener("click", () => {
     window.open(themeLink, "_blank", "noopener");
   });
 });
