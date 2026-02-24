@@ -1,8 +1,20 @@
 {
+  "type": "module",
   "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,ts,json,md,css,html}\"",
+    "format:check": "prettier --check \"**/*.{js,ts,json,md,css,html}\"",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "docs:api": "jsdoc -c jsdoc.json"
   },
   "devDependencies": {
-    "jsdoc": "^4.0.5"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.3.0",
+    "jest": "^30.0.0",
+    "jsdoc": "^4.0.5",
+    "prettier": "^3.8.1"
   }
 }
