@@ -203,54 +203,56 @@ async function handleDropdownChange() {
  * Handles theme toggle — applies or reverts themes.
  */
 async function handleThemeToggle() {
-  const currentTheme = getCurrentTheme();
   const themes = await getInstalledThemes();
-  const previousValue = getCurrentTheme().id;
 
-  for (let i = 0; i < 5; i++) {
-    console.log(themes[i]);
-  }
+  // Find currently enabled theme
+  const activeTheme = themes.find((t) => t.enabled);
+  const inactiveTheme = themes.find((t) => !t.enabled);
+
   try {
-    if (currentTheme.id !== DEFAULT_ID) {
-      await revertThemeInChrome();
-      revertTheme();
-      console.log('Reverting');
-    } else {
-      await applyThemeInChrome(themes[0].id);
-      applyTheme(themes[0].id);
-      console.log('applying');
-    }
+    let newState;
 
-    const newState = {
-      currentThemeId: themes[0].id,
-      currentThemeName: themes[0].name,
-      isDefault: themes[0].id === DEFAULT_ID,
-    };
+    if (activeTheme) {
+      // Revert to default
+      chrome.management.setEnabled(activeTheme.id, false, () => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else {
+          console.log('Extension disabled!');
+        }
+      });
+      revertTheme(); // update internal state
+
+      newState = {
+        currentThemeId: DEFAULT_ID,
+        currentThemeName: 'Default Theme',
+        isDefault: true,
+      };
+    } else if (inactiveTheme) {
+      chrome.management.setEnabled(inactiveTheme.id, true, () => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else {
+          console.log('Extension disabled!');
+        }
+      });
+      applyTheme(inactiveTheme.id); // update internal state
+
+      newState = {
+        currentThemeId: inactiveTheme.id,
+        currentThemeName: inactiveTheme.name,
+        isDefault: false,
+      };
+    } else {
+      // No themes installed
+      return;
+    }
 
     await saveState(newState);
     renderCurrentThemeUI(newState);
   } catch (err) {
-    console.error('Theme change failed:', err);
-
-    const isNotFound =
-      err.message && err.message.toLowerCase().includes('find extension');
-
-    if (isNotFound) {
-      showNotice(
-        `<strong>${selectedName}</strong> is no longer installed. ` +
-          'Chrome only keeps one theme at a time. ' +
-          `<a id="reinstallLink">Reinstall it from the Web Store</a>.`,
-        'info'
-      );
-      const reinstallLink = document.getElementById('reinstallLink');
-      if (reinstallLink) {
-        reinstallLink.addEventListener('click', () => {
-          window.open(WEBSTORE_URL, '_blank', 'noopener');
-        });
-      }
-    } else {
-      showNotice(`Failed to change theme: ${err.message}`);
-    }
+    console.error('Theme toggle failed:', err);
+    showNotice(`Failed to toggle theme: ${err.message}`);
   }
 }
 
@@ -286,17 +288,26 @@ async function init() {
 
     await saveState(state);
     renderCurrentThemeUI(state);
+
+    const result = await chrome.storage.local.get(['links']);
+    const themeLinks = result.links || [];
+
+    addLinks(themeLinks);
+
+    const matchingLink = themeLinks.find((link) =>
+      link.includes(state.currentThemeId)
+    );
+
+    if (matchingLink) {
+      dropdown.value = matchingLink;
+    } else {
+      // fallback to default
+      dropdown.value = state.currentThemeId;
+    }
   } catch (err) {
     console.error('Popup init failed:', err);
     showNotice(`Error: ${err.message}`);
   }
-
-  const result = await chrome.storage.local.get(['links']);
-  const themeLinks = result.links || [];
-
-  addLinks(themeLinks);
-
-  console.log('Total links:', themeLinks.length);
 
   dropdown.addEventListener('change', handleDropdownChange);
   toggleBtn.addEventListener('click', handleThemeToggle);
@@ -309,6 +320,8 @@ async function init() {
     if (!themeLinks.includes(newLink)) {
       themeLinks.push(newLink);
       await chrome.storage.local.set({ links: themeLinks });
+      addLinks([newLink]);
+      dropdown.value = newLink;
     }
   });
 }
