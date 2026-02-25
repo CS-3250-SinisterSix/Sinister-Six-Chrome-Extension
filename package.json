@@ -11,7 +11,8 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "build": "node build.js",
     "dev": "node build.js --watch",
-    "docs:api": "jsdoc -c jsdoc.json"
+    "docs:api": "jsdoc -c jsdoc.json",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -33,6 +34,15 @@
     "globals": "^17.3.0",
     "jest": "^30.0.0",
     "jsdoc": "^4.0.5",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.8.1"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "*.{json,md,css,html}": [
+      "prettier --write"
+    ]
   }
 }
