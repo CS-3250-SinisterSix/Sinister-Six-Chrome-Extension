@@ -1,13 +1,14 @@
 {
   "name": "sinister-six-chrome-extension",
   "version": "1.0.0",
+  "type": "module",
   "description": "CS 3250 Group 6 Chrome Extension",
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,ts,json,md,css,html}\"",
     "format:check": "prettier --check \"**/*.{js,ts,json,md,css,html}\"",
-    "test": "jest --passWithNoTests",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "build": "node build.js",
     "dev": "node build.js --watch",
     "docs:api": "jsdoc -c jsdoc.json"
@@ -30,7 +31,7 @@
     "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.3.0",
-    "jest": "^29.7.0",
+    "jest": "^30.0.0",
     "jsdoc": "^4.0.5",
     "prettier": "^3.8.1"
   }
