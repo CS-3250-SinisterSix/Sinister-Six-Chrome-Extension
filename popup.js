@@ -3,7 +3,12 @@ import {
   applyThemeInChrome,
   revertThemeInChrome,
 } from './src/chromeThemes.js';
-import { applyTheme, revertTheme, getCurrentTheme } from './src/themes.js';
+import {
+  applyTheme,
+  revertTheme,
+  getCurrentTheme,
+  makeLink,
+} from './src/themes.js';
 
 const DEFAULT_ID = 'default';
 const STORAGE_KEY = 'themeState';
@@ -12,7 +17,8 @@ const dropdown = document.getElementById('themeDropdown');
 const nameEl = document.getElementById('currentThemeName');
 const indicatorEl = document.getElementById('themeIndicator');
 const noticeEl = document.getElementById('noticeArea');
-const linkBtn = document.getElementById('link');
+const addBtn = document.getElementById('add');
+const toggleBtn = document.getElementById('toggle');
 
 const WEBSTORE_URL =
   'https://chromewebstore.google.com/category/themes?utm_source=ext_app_menu';
@@ -90,6 +96,33 @@ function populateDropdown(themes) {
 }
 
 /**
+ * Adds collected links to dropdown.
+ * @param {Array<string>} themes
+ */
+function addLinks(themes) {
+  // Remove any previously added theme options (keep the default option)
+  for (const theme of themes) {
+    const option = document.createElement('option');
+    option.value = theme;
+    option.textContent = extractName(theme);
+    dropdown.appendChild(option);
+  }
+}
+
+/**
+ * Extracts extension name from the link
+ * @param {Array<string>} themes
+ */
+function extractName(link) {
+  return link
+    .split('/detail/')[1]
+    .split('/')[0]
+    .split('-')
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/**
  * Determines the current theme state from installed themes list.
  * @param {Array<{ id: string, name: string, enabled: boolean }>} themes
  * @returns {{ currentThemeId: string, currentThemeName: string, isDefault: boolean }}
@@ -123,6 +156,8 @@ async function handleDropdownChange() {
     if (selectedValue === DEFAULT_ID) {
       await revertThemeInChrome();
       revertTheme();
+    } else if (selectedValue.includes('https://chromewebstore.google.com')) {
+      window.open(selectedValue, '_blank', 'noopener');
     } else {
       await applyThemeInChrome(selectedValue);
       applyTheme(selectedValue);
@@ -165,12 +200,67 @@ async function handleDropdownChange() {
 }
 
 /**
+ * Handles theme toggle — applies or reverts themes.
+ */
+async function handleThemeToggle() {
+  const currentTheme = getCurrentTheme();
+  const themes = await getInstalledThemes();
+  const previousValue = getCurrentTheme().id;
+
+  for (let i = 0; i < 5; i++) {
+    console.log(themes[i]);
+  }
+  try {
+    if (currentTheme.id !== DEFAULT_ID) {
+      await revertThemeInChrome();
+      revertTheme();
+      console.log('Reverting');
+    } else {
+      await applyThemeInChrome(themes[0].id);
+      applyTheme(themes[0].id);
+      console.log('applying');
+    }
+
+    const newState = {
+      currentThemeId: themes[0].id,
+      currentThemeName: themes[0].name,
+      isDefault: themes[0].id === DEFAULT_ID,
+    };
+
+    await saveState(newState);
+    renderCurrentThemeUI(newState);
+  } catch (err) {
+    console.error('Theme change failed:', err);
+
+    const isNotFound =
+      err.message && err.message.toLowerCase().includes('find extension');
+
+    if (isNotFound) {
+      showNotice(
+        `<strong>${selectedName}</strong> is no longer installed. ` +
+          'Chrome only keeps one theme at a time. ' +
+          `<a id="reinstallLink">Reinstall it from the Web Store</a>.`,
+        'info'
+      );
+      const reinstallLink = document.getElementById('reinstallLink');
+      if (reinstallLink) {
+        reinstallLink.addEventListener('click', () => {
+          window.open(WEBSTORE_URL, '_blank', 'noopener');
+        });
+      }
+    } else {
+      showNotice(`Failed to change theme: ${err.message}`);
+    }
+  }
+}
+
+/**
  * Initializes the popup on load.
  */
 async function init() {
   try {
     const themes = await getInstalledThemes();
-    populateDropdown(themes);
+    //populateDropdown(themes);
 
     // Detect actual Chrome state (source of truth)
     const detectedState = detectCurrentState(themes);
@@ -201,10 +291,25 @@ async function init() {
     showNotice(`Error: ${err.message}`);
   }
 
-  dropdown.addEventListener('change', handleDropdownChange);
+  const result = await chrome.storage.local.get(['links']);
+  const themeLinks = result.links || [];
 
-  linkBtn.addEventListener('click', () => {
-    window.open(WEBSTORE_URL, '_blank', 'noopener');
+  addLinks(themeLinks);
+
+  console.log('Total links:', themeLinks.length);
+
+  dropdown.addEventListener('change', handleDropdownChange);
+  toggleBtn.addEventListener('click', handleThemeToggle);
+
+  addBtn.addEventListener('click', async () => {
+    const theme = await getInstalledThemes();
+    console.log(makeLink(theme[0].name, theme[0].id));
+    const newLink = makeLink(theme[0].name, theme[0].id);
+
+    if (!themeLinks.includes(newLink)) {
+      themeLinks.push(newLink);
+      await chrome.storage.local.set({ links: themeLinks });
+    }
   });
 }
 

@@ -202,6 +202,16 @@
           box-shadow 0.15s;
       }
 
+      .button-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .button-row .store-link {
+        flex: 1; /* makes them equal width */
+      }
+
       .store-link:hover {
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
@@ -215,14 +225,14 @@
   <body>
     <div class="popup">
       <div class="header">
-        <h1>Themanager</h1>
+        <h1>Juggler</h1>
         <p>Manage your Chrome themes</p>
       </div>
 
       <div class="card">
-        <label class="field-label" for="themeDropdown">Choose a theme</label>
+        <label class="field-label" for="themeDropdown">Theme Collection</label>
         <select id="themeDropdown">
-          <option value="default">Default Theme</option>
+          <option value="default">Select a Theme</option>
         </select>
 
         <div class="status-area">
@@ -240,10 +250,10 @@
         </p>
 
         <div class="divider"></div>
-
-        <button id="link" class="store-link">
-          Browse themes on Chrome Web Store
-        </button>
+        <div class="button-row">
+          <button id="toggle" class="store-link">Toggle Theme</button>
+          <button id="add" class="store-link">Add Current Theme</button>
+        </div>
       </div>
     </div>
 
