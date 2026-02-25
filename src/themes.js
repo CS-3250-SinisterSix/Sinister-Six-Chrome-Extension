@@ -33,7 +33,7 @@
  * @constant {Theme}
  */
 export const DEFAULT_THEME = {
-  id: 'default',
+  id: "default",
   isDefault: true,
 };
 
@@ -68,8 +68,8 @@ const themeListeners = new Set();
  * }
  */
 export function applyTheme(themeId) {
-  if (typeof themeId !== 'string' || themeId.length === 0) {
-    throw new TypeError('themeId must be a non-empty string');
+  if (typeof themeId !== "string" || themeId.length === 0) {
+    throw new TypeError("themeId must be a non-empty string");
   }
 
   const previousThemeId = currentTheme?.id;
@@ -162,8 +162,8 @@ export function getCurrentTheme() {
  * }
  */
 export function isThemeActive(themeId) {
-  if (typeof themeId !== 'string') {
-    throw new TypeError('themeId must be a string');
+  if (typeof themeId !== "string") {
+    throw new TypeError("themeId must be a string");
   }
 
   return currentTheme?.id === themeId;
@@ -188,8 +188,8 @@ export function isThemeActive(themeId) {
  * unsubscribe();
  */
 export function onThemeChange(callback) {
-  if (typeof callback !== 'function') {
-    throw new TypeError('Callback must be a function');
+  if (typeof callback !== "function") {
+    throw new TypeError("Callback must be a function");
   }
 
   themeListeners.add(callback);
@@ -238,7 +238,26 @@ function notifyListeners(theme) {
     try {
       listener(theme);
     } catch (error) {
-      console.error('Theme listener threw an error:', error);
+      console.error("Theme listener threw an error:", error);
     }
   }
+}
+
+/**
+ * Generates a Chrome Web Store link for a theme.
+ *
+ * @param {string} name - The name of the theme
+ * @param {string} ID - The theme's unique ID
+ * @returns {string} The URL to the Chrome Web Store page for the theme
+ *
+ * @example
+ * const url = makeLink('Dark Mode', 'abcd1234');
+ * console.log(url); // "https://chromewebstore.google.com/detail/Dark-Mode/abcd1234"
+ */
+export function makeLink(name, ID) {
+  if (typeof name !== "string" || typeof ID !== "string") {
+    throw new TypeError("name and id must be strings");
+  }
+  const formattedName = name.replaceAll(" ", "-");
+    return `https://chromewebstore.google.com/detail/${formattedName}/${ID}`;
 }

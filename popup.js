@@ -3,7 +3,12 @@ import {
   applyThemeInChrome,
   revertThemeInChrome,
 } from './src/chromeThemes.js';
-import { applyTheme, revertTheme, getCurrentTheme } from './src/themes.js';
+import {
+  applyTheme,
+  revertTheme,
+  getCurrentTheme,
+  makeLink,
+} from './src/themes.js';
 
 const DEFAULT_ID = 'default';
 const STORAGE_KEY = 'themeState';
@@ -12,10 +17,9 @@ const dropdown = document.getElementById('themeDropdown');
 const nameEl = document.getElementById('currentThemeName');
 const indicatorEl = document.getElementById('themeIndicator');
 const noticeEl = document.getElementById('noticeArea');
-const linkBtn = document.getElementById('link');
-
-const WEBSTORE_URL =
-  'https://chromewebstore.google.com/category/themes?utm_source=ext_app_menu';
+const addBtn = document.getElementById('add');
+const toggleBtn = document.getElementById('toggle');
+const infoTip = document.getElementById('info');
 
 /**
  * Renders the current theme state into the popup UI.
@@ -32,7 +36,19 @@ function renderCurrentThemeUI(state) {
     indicatorEl.className = 'indicator indicator--custom';
   }
 
-  dropdown.value = state.currentThemeId;
+  const matchingOption = Array.from(dropdown.options).find((opt) =>
+    opt.value.includes(state.currentThemeId)
+  );
+
+  if (matchingOption) {
+    dropdown.value = matchingOption.value;
+    hideAddTheme(true);
+  } else if (state.currentThemeId !== DEFAULT_ID) {
+    dropdown.value = DEFAULT_ID; // fallback to default
+    hideAddTheme(false);
+  }else {
+    dropdown.value = DEFAULT_ID;
+  }
   hideNotice();
 }
 
@@ -71,22 +87,39 @@ function hideNotice() {
 }
 
 /**
- * Populates the dropdown with installed themes.
- * "Default Theme" is always first (already in HTML).
- * @param {Array<{ id: string, name: string, enabled: boolean }>} themes
+ * Adds collected links to dropdown.
+ * @param {Array<string>} themes
  */
 function populateDropdown(themes) {
   // Remove any previously added theme options (keep the default option)
-  while (dropdown.options.length > 1) {
-    dropdown.remove(1);
-  }
-
   for (const theme of themes) {
     const option = document.createElement('option');
-    option.value = theme.id;
-    option.textContent = theme.name;
+    option.value = theme;
+    option.textContent = extractName(theme);
     dropdown.appendChild(option);
   }
+}
+
+/**
+ * Extracts extension name from the link
+ * @param {Array<string>} themes
+ */
+function extractName(link) {
+  return link
+    .split('/detail/')[1]
+    .split('/')[0]
+    .split('-')
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/**
+ * Sets visibility of the add theme button and info tip
+ * @param {boolean} isThemeInCollection
+ */
+function hideAddTheme(isThemeInCollection) {
+  infoTip.hidden = isThemeInCollection;
+  addBtn.hidden = isThemeInCollection;
 }
 
 /**
@@ -123,6 +156,8 @@ async function handleDropdownChange() {
     if (selectedValue === DEFAULT_ID) {
       await revertThemeInChrome();
       revertTheme();
+    } else if (selectedValue.includes('https://chromewebstore.google.com')) {
+      window.open(selectedValue, '_blank', 'noopener');
     } else {
       await applyThemeInChrome(selectedValue);
       applyTheme(selectedValue);
@@ -149,12 +184,7 @@ async function handleDropdownChange() {
           `<a id="reinstallLink">Reinstall it from the Web Store</a>.`,
         'info'
       );
-      const reinstallLink = document.getElementById('reinstallLink');
-      if (reinstallLink) {
-        reinstallLink.addEventListener('click', () => {
-          window.open(WEBSTORE_URL, '_blank', 'noopener');
-        });
-      }
+    
     } else {
       showNotice(`Failed to change theme: ${err.message}`);
     }
@@ -165,12 +195,69 @@ async function handleDropdownChange() {
 }
 
 /**
+ * Handles theme toggle — applies or reverts themes.
+ */
+async function handleThemeToggle() {
+  const themes = await getInstalledThemes();
+
+  // Find currently enabled theme
+  const activeTheme = themes.find((t) => t.enabled);
+  const inactiveTheme = themes.find((t) => !t.enabled);
+
+  try {
+    let newState;
+
+    if (activeTheme) {
+      // Revert to default
+      chrome.management.setEnabled(activeTheme.id, false, () => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else {
+          console.log('Extension disabled!');
+        }
+      });
+      revertTheme(); // update internal state
+
+      newState = {
+        currentThemeId: DEFAULT_ID,
+        currentThemeName: 'Default Theme',
+        isDefault: true,
+      };
+    } else if (inactiveTheme) {
+      chrome.management.setEnabled(inactiveTheme.id, true, () => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else {
+          console.log('Extension disabled!');
+        }
+      });
+      applyTheme(inactiveTheme.id); // update internal state
+
+      newState = {
+        currentThemeId: inactiveTheme.id,
+        currentThemeName: inactiveTheme.name,
+        isDefault: false,
+      };
+    } else {
+      // No themes installed
+      return;
+    }
+
+    await saveState(newState);
+    renderCurrentThemeUI(newState);
+  } catch (err) {
+    console.error('Theme toggle failed:', err);
+    showNotice(`Failed to toggle theme: ${err.message}`);
+  }
+}
+
+/**
  * Initializes the popup on load.
  */
 async function init() {
   try {
     const themes = await getInstalledThemes();
-    populateDropdown(themes);
+    //populateDropdown(themes);
 
     // Detect actual Chrome state (source of truth)
     const detectedState = detectCurrentState(themes);
@@ -187,6 +274,11 @@ async function init() {
       isDefault: detectedState.isDefault,
     };
 
+    const result = await chrome.storage.local.get(['links']);
+    const themeLinks = result.links || [];
+
+    populateDropdown(themeLinks);
+
     // Sync internal state module
     if (state.isDefault) {
       revertTheme();
@@ -196,15 +288,29 @@ async function init() {
 
     await saveState(state);
     renderCurrentThemeUI(state);
+
   } catch (err) {
     console.error('Popup init failed:', err);
     showNotice(`Error: ${err.message}`);
   }
 
   dropdown.addEventListener('change', handleDropdownChange);
+  toggleBtn.addEventListener('click', handleThemeToggle);
 
-  linkBtn.addEventListener('click', () => {
-    window.open(WEBSTORE_URL, '_blank', 'noopener');
+  addBtn.addEventListener('click', async () => {
+    const result = await chrome.storage.local.get(['links']);
+    const themeLinks = result.links || [];
+    const theme = await getInstalledThemes();
+    console.log(makeLink(theme[0].name, theme[0].id));
+    const newLink = makeLink(theme[0].name, theme[0].id);
+
+    if (!themeLinks.includes(newLink)) {
+      themeLinks.push(newLink);
+      await chrome.storage.local.set({ links: themeLinks });
+      populateDropdown([newLink]);
+      dropdown.value = newLink;
+      hideAddTheme(true);
+    }
   });
 }
 
