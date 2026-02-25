@@ -1,6 +1,6 @@
 {
-  "name": "themanager",
-  "description": "Themanager manages your chrome themes so you can access them quickly and easily",
+  "name": "The Juggler",
+  "description": "The Juggler juggles your chrome themes so you can access them quickly and easily",
   "version": "0.01",
   "manifest_version": 3,
   "action": {

@@ -19,9 +19,7 @@ const indicatorEl = document.getElementById('themeIndicator');
 const noticeEl = document.getElementById('noticeArea');
 const addBtn = document.getElementById('add');
 const toggleBtn = document.getElementById('toggle');
-
-const WEBSTORE_URL =
-  'https://chromewebstore.google.com/category/themes?utm_source=ext_app_menu';
+const infoTip = document.getElementById('info');
 
 /**
  * Renders the current theme state into the popup UI.
@@ -38,7 +36,19 @@ function renderCurrentThemeUI(state) {
     indicatorEl.className = 'indicator indicator--custom';
   }
 
-  dropdown.value = state.currentThemeId;
+  const matchingOption = Array.from(dropdown.options).find((opt) =>
+    opt.value.includes(state.currentThemeId)
+  );
+
+  if (matchingOption) {
+    dropdown.value = matchingOption.value;
+    hideAddTheme(true);
+  } else if (state.currentThemeId !== DEFAULT_ID) {
+    dropdown.value = DEFAULT_ID; // fallback to default
+    hideAddTheme(false);
+  }else {
+    dropdown.value = DEFAULT_ID;
+  }
   hideNotice();
 }
 
@@ -120,6 +130,15 @@ function extractName(link) {
     .split('-')
     .map((w) => w[0].toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+/**
+ * Sets visibility of the add theme button and info tip
+ * @param {boolean} isThemeInCollection
+ */
+function hideAddTheme(isThemeInCollection) {
+  infoTip.hidden = isThemeInCollection;
+  addBtn.hidden = isThemeInCollection;
 }
 
 /**
@@ -279,6 +298,11 @@ async function init() {
       isDefault: detectedState.isDefault,
     };
 
+    const result = await chrome.storage.local.get(['links']);
+    const themeLinks = result.links || [];
+
+    addLinks(themeLinks);
+
     // Sync internal state module
     if (state.isDefault) {
       revertTheme();
@@ -289,21 +313,6 @@ async function init() {
     await saveState(state);
     renderCurrentThemeUI(state);
 
-    const result = await chrome.storage.local.get(['links']);
-    const themeLinks = result.links || [];
-
-    addLinks(themeLinks);
-
-    const matchingLink = themeLinks.find((link) =>
-      link.includes(state.currentThemeId)
-    );
-
-    if (matchingLink) {
-      dropdown.value = matchingLink;
-    } else {
-      // fallback to default
-      dropdown.value = state.currentThemeId;
-    }
   } catch (err) {
     console.error('Popup init failed:', err);
     showNotice(`Error: ${err.message}`);
@@ -313,6 +322,8 @@ async function init() {
   toggleBtn.addEventListener('click', handleThemeToggle);
 
   addBtn.addEventListener('click', async () => {
+    const result = await chrome.storage.local.get(['links']);
+    const themeLinks = result.links || [];
     const theme = await getInstalledThemes();
     console.log(makeLink(theme[0].name, theme[0].id));
     const newLink = makeLink(theme[0].name, theme[0].id);
@@ -322,6 +333,7 @@ async function init() {
       await chrome.storage.local.set({ links: themeLinks });
       addLinks([newLink]);
       dropdown.value = newLink;
+      hideAddTheme(true);
     }
   });
 }

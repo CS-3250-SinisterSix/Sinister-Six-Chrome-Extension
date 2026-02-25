@@ -220,20 +220,22 @@
       .store-link:active {
         transform: translateY(0);
       }
+
+      [hidden] {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
     <div class="popup">
       <div class="header">
-        <h1>Juggler</h1>
+        <h1>The Juggler</h1>
         <p>Manage your Chrome themes</p>
       </div>
 
       <div class="card">
         <label class="field-label" for="themeDropdown">Theme Collection</label>
-        <select id="themeDropdown">
-
-        </select>
+        <select id="themeDropdown"></select>
 
         <div class="status-area">
           <span class="status-label"
@@ -244,15 +246,15 @@
 
         <div id="noticeArea" hidden></div>
 
-        <p class="info-tip">
-          Chrome only keeps one theme at a time. To switch, install a new theme
-          from the Web Store below.
+        <p id="info" class="info-tip" hidden>
+          The current theme hasn't been added to your collection yet. Add it
+          with the "Add Current Theme" Button!
         </p>
 
         <div class="divider"></div>
         <div class="button-row">
           <button id="toggle" class="store-link">Toggle Theme</button>
-          <button id="add" class="store-link">Add Current Theme</button>
+          <button id="add" class="store-link" hidden>Add Current Theme</button>
         </div>
       </div>
     </div>
