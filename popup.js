@@ -87,29 +87,10 @@ function hideNotice() {
 }
 
 /**
- * Populates the dropdown with installed themes.
- * "Default Theme" is always first (already in HTML).
- * @param {Array<{ id: string, name: string, enabled: boolean }>} themes
- */
-function populateDropdown(themes) {
-  // Remove any previously added theme options (keep the default option)
-  while (dropdown.options.length > 1) {
-    dropdown.remove(1);
-  }
-
-  for (const theme of themes) {
-    const option = document.createElement('option');
-    option.value = theme.id;
-    option.textContent = theme.name;
-    dropdown.appendChild(option);
-  }
-}
-
-/**
  * Adds collected links to dropdown.
  * @param {Array<string>} themes
  */
-function addLinks(themes) {
+function populateDropdown(themes) {
   // Remove any previously added theme options (keep the default option)
   for (const theme of themes) {
     const option = document.createElement('option');
@@ -203,12 +184,7 @@ async function handleDropdownChange() {
           `<a id="reinstallLink">Reinstall it from the Web Store</a>.`,
         'info'
       );
-      const reinstallLink = document.getElementById('reinstallLink');
-      if (reinstallLink) {
-        reinstallLink.addEventListener('click', () => {
-          window.open(WEBSTORE_URL, '_blank', 'noopener');
-        });
-      }
+    
     } else {
       showNotice(`Failed to change theme: ${err.message}`);
     }
@@ -301,7 +277,7 @@ async function init() {
     const result = await chrome.storage.local.get(['links']);
     const themeLinks = result.links || [];
 
-    addLinks(themeLinks);
+    populateDropdown(themeLinks);
 
     // Sync internal state module
     if (state.isDefault) {
@@ -331,7 +307,7 @@ async function init() {
     if (!themeLinks.includes(newLink)) {
       themeLinks.push(newLink);
       await chrome.storage.local.set({ links: themeLinks });
-      addLinks([newLink]);
+      populateDropdown([newLink]);
       dropdown.value = newLink;
       hideAddTheme(true);
     }
