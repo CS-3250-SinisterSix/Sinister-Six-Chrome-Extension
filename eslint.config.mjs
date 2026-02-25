@@ -1,23 +1,28 @@
-import js from "@eslint/js";
-import globals from "globals";
-import { defineConfig } from "eslint/config";
+import js from '@eslint/js';
+import globals from 'globals';
+import prettier from 'eslint-config-prettier';
 
-export default defineConfig([
-  // Ignore generated / external directories
+export default [
+  // Ignored paths
   {
-    ignores: ["node_modules/", "dist/", "build/", "coverage/", "docs/api/"],
+    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', 'docs/api/'],
   },
 
-  // Lint JS files with recommended rules + browser/extension globals
+  // Base recommended rules for all JS files
+  js.configs.recommended,
+
+  // Global settings
   {
-    files: ["**/*.{js,mjs,cjs}"],
-    plugins: { js },
-    extends: ["js/recommended"],
     languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       globals: {
         ...globals.browser,
         ...globals.webextensions,
       },
     },
   },
-]);
+
+  // Prettier must be last to override formatting rules
+  prettier,
+];
