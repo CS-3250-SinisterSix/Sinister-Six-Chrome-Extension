@@ -1,26 +1,73 @@
-import { existsSync, mkdirSync, copyFileSync } from 'fs';
-import { join } from 'path';
-import path from 'node:path';
-import { fileURLToPath } from 'url';
+// build.js
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
-const __filename = fileURLToPath(import.meta.url);
+const DIST_DIR = "dist";
 
-const __dirname = path.dirname(__filename);
+// Add whatever your extension actually needs at runtime:
+const COPY_TARGETS = [
+  "manifest.json",
+  "popup.html",
+  "popup.js",
+  "icon.png",
+  "icons",        // folder (recommended)
+  "assets",       // folder (if you have one)
+  "styles",       // folder (if you have one)
+];
 
-// Create dist directory
-
-const distDir = join(__dirname, 'dist');
-if (!existsSync(distDir)) {
-  mkdirSync(distDir);
+async function exists(p) {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-// Copy manifest.json
-if (existsSync('manifest.json')) {
-  copyFileSync('manifest.json', join(distDir, 'manifest.json'));
-  console.log(' Copied manifest.json');
+async function copyRecursive(src, dest) {
+  const stat = await fs.stat(src);
+
+  if (stat.isDirectory()) {
+    await fs.mkdir(dest, { recursive: true });
+    const entries = await fs.readdir(src);
+    for (const entry of entries) {
+      await copyRecursive(path.join(src, entry), path.join(dest, entry));
+    }
+    return;
+  }
+
+  // file
+  await fs.mkdir(path.dirname(dest), { recursive: true });
+  await fs.copyFile(src, dest);
 }
 
-// Copy other files as needed
-// Add more logic here as your extension grows
+async function cleanDist() {
+  await fs.rm(DIST_DIR, { recursive: true, force: true });
+  await fs.mkdir(DIST_DIR, { recursive: true });
+}
 
-console.log('Build completed successfully!');
+async function main() {
+  await cleanDist();
+
+  const copied = [];
+  const missing = [];
+
+  for (const target of COPY_TARGETS) {
+    if (await exists(target)) {
+      await copyRecursive(target, path.join(DIST_DIR, target));
+      copied.push(target);
+    } else {
+      missing.push(target);
+    }
+  }
+
+  console.log(`Build complete. Copied: ${copied.join(", ") || "(none)"}`);
+  if (missing.length) {
+    console.log(`Note: Not found (skipped): ${missing.join(", ")}`);
+  }
+}
+
+main().catch((err) => {
+  console.error("Build failed:", err);
+  process.exit(1);
+});
