@@ -347,14 +347,11 @@ async function init() {
     )
       return;
 
-    const state = await loadState();
-    await chrome.storage.local.clear();
+    await chrome.storage.local.remove('links');
     for (let i = dropdown.length; i >= 0; i--) {
       dropdown.remove(i);
     }
-    saveState(state);
-    console.log(state);
-    renderCurrentThemeUI(state);
+    renderCurrentThemeUI(await loadState());
   });
 }
 
