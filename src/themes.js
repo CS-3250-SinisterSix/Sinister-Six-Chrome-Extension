@@ -74,23 +74,10 @@ export function applyTheme(themeId) {
 
   const previousThemeId = currentTheme?.id;
 
-  try {
-    currentTheme = { id: themeId, isDefault: false };
-    notifyListeners(currentTheme);
+  currentTheme = { id: themeId, isDefault: false };
+  notifyListeners(currentTheme);
 
-    return {
-      success: true,
-      themeId,
-      previousThemeId,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      themeId,
-      previousThemeId,
-      error: error.message,
-    };
-  }
+  return { success: true, themeId, previousThemeId };
 }
 
 /**
@@ -109,23 +96,14 @@ export function applyTheme(themeId) {
 export function revertTheme() {
   const previousThemeId = currentTheme?.id;
 
-  try {
-    currentTheme = { ...DEFAULT_THEME };
-    notifyListeners(currentTheme);
+  currentTheme = { ...DEFAULT_THEME };
+  notifyListeners(currentTheme);
 
-    return {
-      success: true,
-      themeId: DEFAULT_THEME.id,
-      previousThemeId,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      themeId: DEFAULT_THEME.id,
-      previousThemeId,
-      error: error.message,
-    };
-  }
+  return {
+    success: true,
+    themeId: DEFAULT_THEME.id,
+    previousThemeId,
+  };
 }
 
 /**
@@ -260,4 +238,9 @@ export function makeLink(name, ID) {
   }
   const formattedName = name.replaceAll(" ", "-");
     return `https://chromewebstore.google.com/detail/${formattedName}/${ID}`;
+}
+
+export function __resetThemeStateForTests() {
+  currentTheme = null;
+  themeListeners.clear();
 }
