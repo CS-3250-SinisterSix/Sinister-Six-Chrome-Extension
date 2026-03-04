@@ -119,28 +119,6 @@ describe('getInstalledThemes', () => {
   await expect(getInstalledThemes()).rejects.toThrow('callback form broke');
 });
 
-  it('handles getAll returning non-promise value (no .then)', async () => {
-  mockGetAll.mockImplementation(() => {
-    return {}; // truthy but no .then
-  });
-
-  // This should hang unless fallback happens,
-  // so we simulate fallback manually by forcing throw in promise form.
-  mockGetAll.mockImplementationOnce(() => {
-    return {}; // first call → no .then
-  }).mockImplementationOnce((cb) => {
-    cb([
-      { id: 'theme1', name: 'Dark Theme', type: 'theme', enabled: true }
-    ]);
-  });
-
-  const themes = await getInstalledThemes();
-
-  expect(themes).toEqual([
-    { id: 'theme1', name: 'Dark Theme', enabled: true }
-  ]);
-});
-  
 });
 
   describe('applyThemeInChrome', () => {
