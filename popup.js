@@ -10,8 +10,12 @@ import {
   makeLink,
 } from './src/themes.js';
 import { showConfirm } from './src/ui.js';
+import {
+  extractName,
+  detectCurrentState,
+  DEFAULT_ID,
+} from './src/popupLogic.js';
 
-const DEFAULT_ID = 'default';
 const STORAGE_KEY = 'themeState';
 
 const dropdown = document.getElementById('themeDropdown');
@@ -103,26 +107,12 @@ function hideNotice() {
  * @param {Array<string>} themes
  */
 function populateDropdown(themes) {
-  // Remove any previously added theme options (keep the default option)
   for (const theme of themes) {
     const option = document.createElement('option');
     option.value = theme;
     option.textContent = extractName(theme);
     dropdown.appendChild(option);
   }
-}
-
-/**
- * Extracts extension name from the link
- * @param {Array<string>} themes
- */
-function extractName(link) {
-  return link
-    .split('/detail/')[1]
-    .split('/')[0]
-    .split('-')
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
 }
 
 /**
@@ -133,27 +123,6 @@ function hideAddTheme(isThemeInCollection) {
   infoTip.hidden = isThemeInCollection;
   addBtn.hidden = isThemeInCollection;
   delBtn.hidden = !isThemeInCollection;
-}
-
-/**
- * Determines the current theme state from installed themes list.
- * @param {Array<{ id: string, name: string, enabled: boolean }>} themes
- * @returns {{ currentThemeId: string, currentThemeName: string, isDefault: boolean }}
- */
-function detectCurrentState(themes) {
-  const activeTheme = themes.find((t) => t.enabled);
-  if (activeTheme) {
-    return {
-      currentThemeId: activeTheme.id,
-      currentThemeName: activeTheme.name,
-      isDefault: false,
-    };
-  }
-  return {
-    currentThemeId: DEFAULT_ID,
-    currentThemeName: 'Default Theme',
-    isDefault: true,
-  };
 }
 
 /**
@@ -201,7 +170,6 @@ async function handleDropdownChange() {
       showNotice(`Failed to change theme: ${err.message}`);
     }
 
-    // Revert dropdown to previous selection
     dropdown.value = previousValue;
   }
 }
@@ -212,7 +180,6 @@ async function handleDropdownChange() {
 async function handleThemeToggle() {
   const themes = await getInstalledThemes();
 
-  // Find currently enabled theme
   const activeTheme = themes.find((t) => t.enabled);
   const inactiveTheme = themes.find((t) => !t.enabled);
 
@@ -220,7 +187,6 @@ async function handleThemeToggle() {
     let newState;
 
     if (activeTheme) {
-      // Revert to default
       chrome.management.setEnabled(activeTheme.id, false, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
@@ -228,7 +194,7 @@ async function handleThemeToggle() {
           console.log('Extension disabled!');
         }
       });
-      revertTheme(); // update internal state
+      revertTheme();
 
       newState = {
         currentThemeId: DEFAULT_ID,
@@ -243,7 +209,7 @@ async function handleThemeToggle() {
           console.log('Extension disabled!');
         }
       });
-      applyTheme(inactiveTheme.id); // update internal state
+      applyTheme(inactiveTheme.id);
 
       newState = {
         currentThemeId: inactiveTheme.id,
@@ -251,7 +217,6 @@ async function handleThemeToggle() {
         isDefault: false,
       };
     } else {
-      // No themes installed
       return;
     }
 
@@ -269,12 +234,9 @@ async function handleThemeToggle() {
 async function init() {
   try {
     const themes = await getInstalledThemes();
-    //populateDropdown(themes);
 
-    // Detect actual Chrome state (source of truth)
     const detectedState = detectCurrentState(themes);
 
-    // Load saved state for name display, but trust Chrome for which is active
     const savedState = await loadState();
 
     const state = {
@@ -291,7 +253,6 @@ async function init() {
 
     populateDropdown(themeLinks);
 
-    // Sync internal state module
     if (state.isDefault) {
       revertTheme();
     } else {
@@ -328,8 +289,9 @@ async function init() {
       !(await showConfirm(
         'Are you sure you want to remove this theme from your collection?'
       ))
-    )
+    ) {
       return;
+    }
 
     const result = await chrome.storage.local.get(['links']);
     const updatedLinks =
@@ -344,8 +306,9 @@ async function init() {
       !(await showConfirm(
         'This will remove all themes from your collection. Are you sure you want to continue?'
       ))
-    )
+    ) {
       return;
+    }
 
     await chrome.storage.local.remove('links');
     for (let i = dropdown.length; i >= 0; i--) {
