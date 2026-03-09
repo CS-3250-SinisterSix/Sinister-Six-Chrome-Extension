@@ -3,15 +3,12 @@ import globals from "globals";
 import prettier from "eslint-config-prettier";
 
 export default [
-  // Ignored paths
   {
     ignores: ["node_modules/", "dist/", "build/", "coverage/", "docs/api/"],
   },
 
-  // Base recommended rules for all JS files
   eslintJs.configs.recommended,
 
-  // Global settings for extension/browser code
   {
     files: ["**/*.{js,mjs,cjs}"],
     languageOptions: {
@@ -24,7 +21,6 @@ export default [
     },
   },
 
-  // Node environment for tooling scripts (so `process` is defined)
   {
     files: ["build.js"],
     languageOptions: {
@@ -34,6 +30,14 @@ export default [
     },
   },
 
-  // Prettier must be last to override formatting rules
+  {
+    files: ["**/*.test.js"],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
+    },
+  },
+
   prettier,
 ];
