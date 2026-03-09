@@ -9,6 +9,7 @@ import {
   getCurrentTheme,
   makeLink,
 } from './src/themes.js';
+import { showConfirm } from './src/ui.js';
 
 const DEFAULT_ID = 'default';
 const STORAGE_KEY = 'themeState';
@@ -18,8 +19,10 @@ const nameEl = document.getElementById('currentThemeName');
 const indicatorEl = document.getElementById('themeIndicator');
 const noticeEl = document.getElementById('noticeArea');
 const addBtn = document.getElementById('add');
+const delBtn = document.getElementById('del');
 const toggleBtn = document.getElementById('toggle');
 const infoTip = document.getElementById('info');
+const clearAllBtn = document.getElementById('clearAll');
 
 /**
  * Renders the current theme state into the popup UI.
@@ -27,6 +30,8 @@ const infoTip = document.getElementById('info');
  */
 function renderCurrentThemeUI(state) {
   nameEl.textContent = state.currentThemeName;
+
+  console.log(state);
 
   if (state.isDefault) {
     indicatorEl.textContent = 'Default';
@@ -46,8 +51,15 @@ function renderCurrentThemeUI(state) {
   } else if (state.currentThemeId !== DEFAULT_ID) {
     dropdown.value = DEFAULT_ID; // fallback to default
     hideAddTheme(false);
-  }else {
+    console.log(dropdown.value);
+  } else {
     dropdown.value = DEFAULT_ID;
+  }
+
+  if (dropdown.length == 0) {
+    dropdown.disabled = true;
+  } else {
+    dropdown.disabled = false;
   }
   hideNotice();
 }
@@ -120,6 +132,7 @@ function extractName(link) {
 function hideAddTheme(isThemeInCollection) {
   infoTip.hidden = isThemeInCollection;
   addBtn.hidden = isThemeInCollection;
+  delBtn.hidden = !isThemeInCollection;
 }
 
 /**
@@ -184,7 +197,6 @@ async function handleDropdownChange() {
           `<a id="reinstallLink">Reinstall it from the Web Store</a>.`,
         'info'
       );
-    
     } else {
       showNotice(`Failed to change theme: ${err.message}`);
     }
@@ -288,7 +300,6 @@ async function init() {
 
     await saveState(state);
     renderCurrentThemeUI(state);
-
   } catch (err) {
     console.error('Popup init failed:', err);
     showNotice(`Error: ${err.message}`);
@@ -301,7 +312,6 @@ async function init() {
     const result = await chrome.storage.local.get(['links']);
     const themeLinks = result.links || [];
     const theme = await getInstalledThemes();
-    console.log(makeLink(theme[0].name, theme[0].id));
     const newLink = makeLink(theme[0].name, theme[0].id);
 
     if (!themeLinks.includes(newLink)) {
@@ -309,8 +319,39 @@ async function init() {
       await chrome.storage.local.set({ links: themeLinks });
       populateDropdown([newLink]);
       dropdown.value = newLink;
-      hideAddTheme(true);
+      renderCurrentThemeUI(await loadState());
     }
+  });
+
+  delBtn.addEventListener('click', async () => {
+    if (
+      !(await showConfirm(
+        'Are you sure you want to remove this theme from your collection?'
+      ))
+    )
+      return;
+
+    const result = await chrome.storage.local.get(['links']);
+    const updatedLinks =
+      result.links.filter((link) => link !== dropdown.value) || [];
+    await chrome.storage.local.set({ links: updatedLinks });
+    dropdown.remove(dropdown.selectedIndex);
+    renderCurrentThemeUI(await loadState());
+  });
+
+  clearAllBtn.addEventListener('click', async () => {
+    if (
+      !(await showConfirm(
+        'This will remove all themes from your collection. Are you sure you want to continue?'
+      ))
+    )
+      return;
+
+    await chrome.storage.local.remove('links');
+    for (let i = dropdown.length; i >= 0; i--) {
+      dropdown.remove(i);
+    }
+    renderCurrentThemeUI(await loadState());
   });
 }
 

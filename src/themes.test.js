@@ -8,12 +8,13 @@ import {
   getListenerCount,
   clearAllListeners,
   DEFAULT_THEME,
+  __resetThemeStateForTests,
+  makeLink,
 } from './themes.js';
 
 describe('themes state module', () => {
   beforeEach(() => {
-    revertTheme();
-    clearAllListeners();
+    __resetThemeStateForTests();
   });
 
   describe('getCurrentTheme', () => {
@@ -122,6 +123,14 @@ describe('themes state module', () => {
       applyTheme('test');
       expect(called).toBe(true);
     });
+    
+    it('throws TypeError if callback is not a function', () => {
+    expect(() => onThemeChange()).toThrow(TypeError);
+    expect(() => onThemeChange(null)).toThrow(TypeError);
+    expect(() => onThemeChange(123)).toThrow(TypeError);
+    expect(() => onThemeChange("not a function")).toThrow(TypeError);
+    expect(() => onThemeChange({})).toThrow(TypeError);
+   });
   });
 
   describe('getListenerCount / clearAllListeners', () => {
@@ -137,5 +146,20 @@ describe('themes state module', () => {
       clearAllListeners();
       expect(getListenerCount()).toBe(0);
     });
+  });
+});
+
+describe("makeLink", () => {
+  it("builds the Chrome Web Store URL and replaces spaces with hyphens", () => {
+    const url = makeLink("Dark Mode Theme", "abcd1234");
+    expect(url).toBe(
+      "https://chromewebstore.google.com/detail/Dark-Mode-Theme/abcd1234"
+    );
+  });
+
+  it("throws TypeError when name or ID are not strings", () => {
+    expect(() => makeLink(123, "abcd1234")).toThrow(TypeError);
+    expect(() => makeLink("Dark Mode", null)).toThrow(TypeError);
+    expect(() => makeLink(undefined, undefined)).toThrow(TypeError);
   });
 });
