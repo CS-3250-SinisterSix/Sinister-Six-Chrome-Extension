@@ -15,6 +15,9 @@ import {
   detectCurrentState,
   DEFAULT_ID,
 } from './src/popupLogic.js';
+import {
+   getTogglePlan 
+} from './src/toggleThemeLogic.js';
 
 const STORAGE_KEY = 'themeState';
 
@@ -180,14 +183,15 @@ async function handleDropdownChange() {
 async function handleThemeToggle() {
   const themes = await getInstalledThemes();
 
-  const activeTheme = themes.find((t) => t.enabled);
-  const inactiveTheme = themes.find((t) => !t.enabled);
-
   try {
-    let newState;
+    const plan = getTogglePlan(themes);
 
-    if (activeTheme) {
-      chrome.management.setEnabled(activeTheme.id, false, () => {
+    if (!plan) {
+      return;
+    }
+
+    if (plan.action === 'disable') {
+      chrome.management.setEnabled(plan.themeId, false, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
         } else {
@@ -195,33 +199,19 @@ async function handleThemeToggle() {
         }
       });
       revertTheme();
-
-      newState = {
-        currentThemeId: DEFAULT_ID,
-        currentThemeName: 'Default Theme',
-        isDefault: true,
-      };
-    } else if (inactiveTheme) {
-      chrome.management.setEnabled(inactiveTheme.id, true, () => {
+    } else if (plan.action === 'enable') {
+      chrome.management.setEnabled(plan.themeId, true, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
         } else {
-          console.log('Extension disabled!');
+          console.log('Extension enabled!');
         }
       });
-      applyTheme(inactiveTheme.id);
-
-      newState = {
-        currentThemeId: inactiveTheme.id,
-        currentThemeName: inactiveTheme.name,
-        isDefault: false,
-      };
-    } else {
-      return;
+      applyTheme(plan.themeId);
     }
 
-    await saveState(newState);
-    renderCurrentThemeUI(newState);
+    await saveState(plan.newState);
+    renderCurrentThemeUI(plan.newState);
   } catch (err) {
     console.error('Theme toggle failed:', err);
     showNotice(`Failed to toggle theme: ${err.message}`);
