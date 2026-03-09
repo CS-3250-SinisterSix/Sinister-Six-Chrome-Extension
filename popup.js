@@ -18,6 +18,9 @@ import {
 import {
    getTogglePlan 
 } from './src/toggleThemeLogic.js';
+import {
+  getDropdownChangePlan 
+} from './src/dropdownThemeLogic.js';
 
 const STORAGE_KEY = 'themeState';
 
@@ -138,24 +141,20 @@ async function handleDropdownChange() {
   const selectedName = selectedOption.textContent;
 
   try {
-    if (selectedValue === DEFAULT_ID) {
+    const plan = getDropdownChangePlan(selectedValue, selectedName);
+
+    if (plan.action === 'revert') {
       await revertThemeInChrome();
       revertTheme();
-    } else if (selectedValue.includes('https://chromewebstore.google.com')) {
-      window.open(selectedValue, '_blank', 'noopener');
-    } else {
-      await applyThemeInChrome(selectedValue);
-      applyTheme(selectedValue);
+    } else if (plan.action === 'openLink') {
+      window.open(plan.url, '_blank', 'noopener');
+    } else if (plan.action === 'apply') {
+      await applyThemeInChrome(plan.themeId);
+      applyTheme(plan.themeId);
     }
 
-    const newState = {
-      currentThemeId: selectedValue,
-      currentThemeName: selectedName,
-      isDefault: selectedValue === DEFAULT_ID,
-    };
-
-    await saveState(newState);
-    renderCurrentThemeUI(newState);
+    await saveState(plan.newState);
+    renderCurrentThemeUI(plan.newState);
   } catch (err) {
     console.error('Theme change failed:', err);
 
