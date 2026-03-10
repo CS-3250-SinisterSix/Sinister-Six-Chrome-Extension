@@ -3,6 +3,22 @@
 export const DEFAULT_ID = 'default';
 
 /**
+ * Supported sort modes for the theme collection.
+ * @readonly
+ * @enum {string}
+ */
+export const SORT_MODES = {
+  ALPHABETICAL: 'alphabetical',
+  RECENTLY_ADDED: 'recentlyAdded',
+  RECENTLY_USED: 'recentlyUsed',
+};
+
+/**
+ * Extracts a human-readable theme name from a Chrome Web Store URL.
+ * @param {string} link - Chrome Web Store theme URL.
+ * @returns {string} Formatted theme name with each word capitalized.
+ */
+/**
  * Selects a random theme from the saved collection, avoiding the currently
  * active theme when possible.
  *
@@ -44,6 +60,11 @@ export function extractName(link) {
     .join(' ');
 }
 
+/**
+ * Detects the current theme state from an array of installed themes.
+ * @param {Array<{ id: string, name: string, enabled: boolean }>} themes
+ * @returns {{ currentThemeId: string, currentThemeName: string, isDefault: boolean }}
+ */
 export function detectCurrentState(themes) {
   const activeTheme = themes.find((t) => t.enabled);
   if (activeTheme) {
@@ -58,4 +79,38 @@ export function detectCurrentState(themes) {
     currentThemeName: 'Default Theme',
     isDefault: true,
   };
+}
+
+/**
+ * Sorts an array of theme URL strings by the specified mode.
+ * Returns a new array — the input is never mutated.
+ *
+ * @param {string[]} links - Theme Chrome Web Store URLs.
+ * @param {string} mode - One of {@link SORT_MODES}.
+ * @param {Object<string, { addedAt?: number, lastUsed?: number }>} [metadata={}]
+ *   Map of URL to timestamp metadata.
+ * @returns {string[]} A new sorted array of theme URLs.
+ */
+export function sortThemes(links, mode, metadata = {}) {
+  const copy = [...links];
+
+  switch (mode) {
+    case SORT_MODES.ALPHABETICAL:
+      return copy.sort((a, b) =>
+        extractName(a).toLowerCase().localeCompare(extractName(b).toLowerCase())
+      );
+
+    case SORT_MODES.RECENTLY_ADDED:
+      return copy.sort(
+        (a, b) => (metadata[b]?.addedAt || 0) - (metadata[a]?.addedAt || 0)
+      );
+
+    case SORT_MODES.RECENTLY_USED:
+      return copy.sort(
+        (a, b) => (metadata[b]?.lastUsed || 0) - (metadata[a]?.lastUsed || 0)
+      );
+
+    default:
+      return copy;
+  }
 }

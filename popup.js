@@ -14,10 +14,12 @@ import {
   extractName,
   detectCurrentState,
   selectRandomTheme,
+  sortThemes,
   DEFAULT_ID,
 } from './src/popupLogic.js';
 
 const STORAGE_KEY = 'themeState';
+const METADATA_KEY = 'linkMetadata';
 
 const dropdown = document.getElementById('themeDropdown');
 const nameEl = document.getElementById('currentThemeName');
@@ -30,6 +32,7 @@ const infoTip = document.getElementById('info');
 const clearAllBtn = document.getElementById('clearAll');
 const randomBtn = document.getElementById('randomTheme');
 const downloadBtn = document.getElementById('downloadTheme');
+const sortDropdown = document.getElementById('sortDropdown');
 
 /**
  * Renders the current theme state into the popup UI.
@@ -106,16 +109,34 @@ function hideNotice() {
 }
 
 /**
- * Adds collected links to dropdown.
- * @param {Array<string>} themes
+ * Clears and re-populates the theme dropdown with the given links.
+ * @param {string[]} themes - Array of Chrome Web Store URL strings.
  */
 function populateDropdown(themes) {
+  while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
   for (const theme of themes) {
     const option = document.createElement('option');
     option.value = theme;
     option.textContent = extractName(theme);
     dropdown.appendChild(option);
   }
+}
+
+/**
+ * Re-renders the theme dropdown sorted by the current sort mode.
+ * Preserves the previously selected value if still present.
+ * @param {string[]} links - Raw unsorted theme URLs.
+ * @param {Object<string, { addedAt?: number, lastUsed?: number }>} metadata
+ */
+function renderSortedDropdown(links, metadata) {
+  const previousValue = dropdown.value;
+  const sorted = sortThemes(links, sortDropdown.value, metadata);
+  populateDropdown(sorted);
+  // Restore previous selection if it still exists
+  const stillExists = Array.from(dropdown.options).some(
+    (o) => o.value === previousValue
+  );
+  if (stillExists) dropdown.value = previousValue;
 }
 
 /**
@@ -155,6 +176,19 @@ async function handleDropdownChange() {
     };
 
     await saveState(newState);
+
+    // Update lastUsed timestamp for the selected collection item
+    if (selectedValue !== DEFAULT_ID) {
+      const mdResult = await chrome.storage.local.get([METADATA_KEY]);
+      const md = mdResult[METADATA_KEY] || {};
+      if (md[selectedValue]) {
+        md[selectedValue].lastUsed = Date.now();
+      } else {
+        md[selectedValue] = { addedAt: 0, lastUsed: Date.now() };
+      }
+      await chrome.storage.local.set({ [METADATA_KEY]: md });
+    }
+
     renderCurrentThemeUI(newState);
   } catch (err) {
     console.error('Theme change failed:', err);
@@ -224,6 +258,21 @@ async function handleThemeToggle() {
     }
 
     await saveState(newState);
+
+    // Update lastUsed if the toggled theme is in the collection
+    if (newState.currentThemeId !== DEFAULT_ID) {
+      const mdResult = await chrome.storage.local.get(['links', METADATA_KEY]);
+      const links = mdResult.links || [];
+      const md = mdResult[METADATA_KEY] || {};
+      const matchingUrl = links.find((url) =>
+        url.includes(newState.currentThemeId)
+      );
+      if (matchingUrl && md[matchingUrl]) {
+        md[matchingUrl].lastUsed = Date.now();
+        await chrome.storage.local.set({ [METADATA_KEY]: md });
+      }
+    }
+
     renderCurrentThemeUI(newState);
   } catch (err) {
     console.error('Theme toggle failed:', err);
@@ -251,10 +300,11 @@ async function init() {
       isDefault: detectedState.isDefault,
     };
 
-    const result = await chrome.storage.local.get(['links']);
+    const result = await chrome.storage.local.get(['links', METADATA_KEY]);
     const themeLinks = result.links || [];
+    const metadata = result[METADATA_KEY] || {};
 
-    populateDropdown(themeLinks);
+    renderSortedDropdown(themeLinks, metadata);
 
     if (state.isDefault) {
       revertTheme();
@@ -271,6 +321,14 @@ async function init() {
 
   dropdown.addEventListener('change', handleDropdownChange);
   toggleBtn.addEventListener('click', handleThemeToggle);
+
+  sortDropdown.addEventListener('change', async () => {
+    const result = await chrome.storage.local.get(['links', METADATA_KEY]);
+    const links = result.links || [];
+    const md = result[METADATA_KEY] || {};
+    renderSortedDropdown(links, md);
+    renderCurrentThemeUI(await loadState());
+  });
 
   downloadBtn.addEventListener('click', () => {
     window.open(
@@ -297,15 +355,23 @@ async function init() {
   });
 
   addBtn.addEventListener('click', async () => {
-    const result = await chrome.storage.local.get(['links']);
+    const result = await chrome.storage.local.get(['links', METADATA_KEY]);
     const themeLinks = result.links || [];
+    const metadata = result[METADATA_KEY] || {};
     const theme = await getInstalledThemes();
     const newLink = makeLink(theme[0].name, theme[0].id);
 
     if (!themeLinks.includes(newLink)) {
       themeLinks.push(newLink);
-      await chrome.storage.local.set({ links: themeLinks });
-      populateDropdown([newLink]);
+      metadata[newLink] = {
+        addedAt: Date.now(),
+        lastUsed: Date.now(),
+      };
+      await chrome.storage.local.set({
+        links: themeLinks,
+        [METADATA_KEY]: metadata,
+      });
+      renderSortedDropdown(themeLinks, metadata);
       dropdown.value = newLink;
       renderCurrentThemeUI(await loadState());
     }
@@ -320,11 +386,17 @@ async function init() {
       return;
     }
 
-    const result = await chrome.storage.local.get(['links']);
+    const removedUrl = dropdown.value;
+    const result = await chrome.storage.local.get(['links', METADATA_KEY]);
     const updatedLinks =
-      result.links.filter((link) => link !== dropdown.value) || [];
-    await chrome.storage.local.set({ links: updatedLinks });
-    dropdown.remove(dropdown.selectedIndex);
+      result.links.filter((link) => link !== removedUrl) || [];
+    const metadata = result[METADATA_KEY] || {};
+    delete metadata[removedUrl];
+    await chrome.storage.local.set({
+      links: updatedLinks,
+      [METADATA_KEY]: metadata,
+    });
+    renderSortedDropdown(updatedLinks, metadata);
     renderCurrentThemeUI(await loadState());
   });
 
@@ -337,10 +409,8 @@ async function init() {
       return;
     }
 
-    await chrome.storage.local.remove('links');
-    for (let i = dropdown.length; i >= 0; i--) {
-      dropdown.remove(i);
-    }
+    await chrome.storage.local.remove(['links', METADATA_KEY]);
+    populateDropdown([]);
     renderCurrentThemeUI(await loadState());
   });
 }
