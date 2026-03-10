@@ -1,18 +1,19 @@
 // build.js
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 
-const DIST_DIR = "dist";
+const DIST_DIR = 'dist';
 
 // Add whatever your extension actually needs at runtime:
 const COPY_TARGETS = [
-  "manifest.json",
-  "popup.html",
-  "popup.js",
-  "icon.png",
-  "icons",        // folder (recommended)
-  "assets",       // folder (if you have one)
-  "styles",       // folder (if you have one)
+  'manifest.json',
+  'popup.html',
+  'popup.js',
+  'icon.png',
+  'src/popupLogic.js',
+  'src/themes.js',
+  'src/chromeThemes.js',
+  'src/ui.js',
 ];
 
 async function exists(p) {
@@ -61,13 +62,13 @@ async function main() {
     }
   }
 
-  console.log(`Build complete. Copied: ${copied.join(", ") || "(none)"}`);
+  console.log(`Build complete. Copied: ${copied.join(', ') || '(none)'}`);
   if (missing.length) {
-    console.log(`Note: Not found (skipped): ${missing.join(", ")}`);
+    console.log(`Note: Not found (skipped): ${missing.join(', ')}`);
   }
 }
 
 main().catch((err) => {
-  console.error("Build failed:", err);
+  console.error('Build failed:', err);
   process.exit(1);
 });
