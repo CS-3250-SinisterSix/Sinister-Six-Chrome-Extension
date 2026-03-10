@@ -90,6 +90,27 @@
         border-color: #bbb;
       }
 
+      /* Sort row */
+      .sort-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+
+      .sort-row .field-label {
+        margin-bottom: 0;
+      }
+
+      .sort-select {
+        width: auto;
+        padding: 4px 28px 4px 8px;
+        font-size: 11px;
+        border-width: 1px;
+        border-radius: 6px;
+        background-position: right 6px center;
+      }
+
       /* Status area */
       .status-area {
         display: flex;
@@ -290,7 +311,16 @@
       </div>
 
       <div class="card">
-        <label class="field-label" for="themeDropdown">Theme Collection</label>
+        <div class="sort-row">
+          <label class="field-label" for="themeDropdown"
+            >Theme Collection</label
+          >
+          <select id="sortDropdown" class="sort-select">
+            <option value="alphabetical">A–Z</option>
+            <option value="recentlyAdded">Recently Added</option>
+            <option value="recentlyUsed">Recently Used</option>
+          </select>
+        </div>
         <select id="themeDropdown"></select>
 
         <div class="status-area">
