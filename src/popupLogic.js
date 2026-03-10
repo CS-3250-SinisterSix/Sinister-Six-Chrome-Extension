@@ -1,5 +1,33 @@
 // src/popupLogic.js
 
+/**
+ * @typedef {Object} InstalledTheme
+ * @property {string} id - Chrome extension ID for the theme.
+ * @property {string} name - Human-readable theme name.
+ * @property {boolean} enabled - Whether the theme is currently enabled.
+ */
+
+/**
+ * @typedef {Object} ThemeState
+ * @property {string} currentThemeId - The current theme ID or default sentinel.
+ * @property {string} currentThemeName - Display name of the current theme.
+ * @property {boolean} isDefault - Whether the default Chrome theme is active.
+ */
+
+/**
+ * @typedef {Object} ThemeMetadata
+ * @property {number} [addedAt] - Timestamp for when the theme was added.
+ * @property {number} [lastUsed] - Timestamp for when the theme was last used.
+ */
+
+/**
+ * @typedef {Object<string, ThemeMetadata>} ThemeMetadataMap
+ */
+
+/**
+ * The sentinel ID used to represent the default Chrome theme.
+ * @type {string}
+ */
 export const DEFAULT_ID = 'default';
 
 /**
@@ -14,17 +42,12 @@ export const SORT_MODES = {
 };
 
 /**
- * Extracts a human-readable theme name from a Chrome Web Store URL.
- * @param {string} link - Chrome Web Store theme URL.
- * @returns {string} Formatted theme name with each word capitalized.
- */
-/**
  * Selects a random theme from the saved collection, avoiding the currently
  * active theme when possible.
  *
  * @param {string[]} themes - Array of saved theme URL strings.
  * @param {string|null} [activeTheme=null] - The currently active theme URL to avoid.
- * @param {function} [randomFn=Math.random] - Random number generator (0–1), injectable for testing.
+ * @param {function} [randomFn=Math.random] - Random number generator, injectable for testing.
  * @returns {string|null} A randomly selected theme URL, or null if the array is empty.
  */
 export function selectRandomTheme(
@@ -62,8 +85,8 @@ export function extractName(link) {
 
 /**
  * Detects the current theme state from an array of installed themes.
- * @param {Array<{ id: string, name: string, enabled: boolean }>} themes
- * @returns {{ currentThemeId: string, currentThemeName: string, isDefault: boolean }}
+ * @param {InstalledTheme[]} themes - Installed Chrome themes.
+ * @returns {ThemeState} The detected current theme state.
  */
 export function detectCurrentState(themes) {
   const activeTheme = themes.find((t) => t.enabled);
@@ -83,12 +106,11 @@ export function detectCurrentState(themes) {
 
 /**
  * Sorts an array of theme URL strings by the specified mode.
- * Returns a new array — the input is never mutated.
+ * Returns a new array; the input is never mutated.
  *
  * @param {string[]} links - Theme Chrome Web Store URLs.
  * @param {string} mode - One of {@link SORT_MODES}.
- * @param {Object<string, { addedAt?: number, lastUsed?: number }>} [metadata={}]
- *   Map of URL to timestamp metadata.
+ * @param {ThemeMetadataMap} [metadata={}] - Map of URL to timestamp metadata.
  * @returns {string[]} A new sorted array of theme URLs.
  */
 export function sortThemes(links, mode, metadata = {}) {
@@ -115,6 +137,13 @@ export function sortThemes(links, mode, metadata = {}) {
   }
 }
 
+/**
+ * Determines what action should be taken for a dropdown selection.
+ *
+ * @param {string} selectedValue - The selected dropdown value.
+ * @returns {{ action: 'revert' } | { action: 'open-link', url: string } | { action: 'apply', themeId: string }}
+ *   The action to take for the selected value.
+ */
 export function getDropdownAction(selectedValue) {
   if (selectedValue === DEFAULT_ID) {
     return { action: 'revert' };
@@ -130,6 +159,16 @@ export function getDropdownAction(selectedValue) {
   return { action: 'apply', themeId: selectedValue };
 }
 
+/**
+ * Determines the result of pressing the theme toggle button.
+ *
+ * @param {InstalledTheme[]} themes - Installed Chrome themes.
+ * @returns {{
+ *   action: 'disable' | 'enable',
+ *   targetId: string,
+ *   newState: ThemeState
+ * } | null} The toggle outcome, or null when no themes are available.
+ */
 export function getToggleOutcome(themes) {
   const activeTheme = themes.find((t) => t.enabled);
   const inactiveTheme = themes.find((t) => !t.enabled);
@@ -163,8 +202,9 @@ export function getToggleOutcome(themes) {
 
 /**
  * Determines whether an error message indicates a missing Chrome theme.
- * @param {string} message
- * @returns {boolean}
+ *
+ * @param {string} message - Error message to inspect.
+ * @returns {boolean} True if the message indicates a missing extension.
  */
 export function isMissingThemeError(message) {
   return (
