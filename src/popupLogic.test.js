@@ -5,6 +5,9 @@ import {
   DEFAULT_ID,
   SORT_MODES,
   selectRandomTheme,
+  getDropdownAction,
+  getToggleOutcome,
+  isMissingThemeError,
 } from './popupLogic.js';
 
 describe('extractName', () => {
@@ -248,5 +251,84 @@ describe('selectRandomTheme', () => {
     // but test the fallback path by having activeTheme = null
     const result = selectRandomTheme([themeA], null, () => 0);
     expect(result).toBe(themeA);
+  });
+});
+
+describe('getDropdownAction', () => {
+  test('returns revert for default selection', () => {
+    expect(getDropdownAction(DEFAULT_ID)).toEqual({ action: 'revert' });
+  });
+
+  test('returns open-link for chrome web store urls', () => {
+    const url = 'https://chromewebstore.google.com/detail/dark-theme/abc';
+    expect(getDropdownAction(url)).toEqual({
+      action: 'open-link',
+      url,
+    });
+  });
+
+  test('returns apply for theme ids', () => {
+    expect(getDropdownAction('theme123')).toEqual({
+      action: 'apply',
+      themeId: 'theme123',
+    });
+  });
+});
+
+describe('getToggleOutcome', () => {
+  test('returns disable outcome when an active theme exists', () => {
+    const themes = [
+      { id: 'a', name: 'Theme A', enabled: true },
+      { id: 'b', name: 'Theme B', enabled: false },
+    ];
+
+    expect(getToggleOutcome(themes)).toEqual({
+      action: 'disable',
+      targetId: 'a',
+      newState: {
+        currentThemeId: DEFAULT_ID,
+        currentThemeName: 'Default Theme',
+        isDefault: true,
+      },
+    });
+  });
+
+  test('returns enable outcome when no active theme exists but inactive theme does', () => {
+    const themes = [
+      { id: 'b', name: 'Theme B', enabled: false },
+    ];
+
+    expect(getToggleOutcome(themes)).toEqual({
+      action: 'enable',
+      targetId: 'b',
+      newState: {
+        currentThemeId: 'b',
+        currentThemeName: 'Theme B',
+        isDefault: false,
+      },
+    });
+  });
+
+  test('returns null when no themes exist', () => {
+    expect(getToggleOutcome([])).toBeNull();
+  });
+});
+
+describe('isMissingThemeError', () => {
+  test('returns true when message contains "find extension"', () => {
+    expect(isMissingThemeError('Cannot find extension')).toBe(true);
+  });
+
+  test('is case insensitive', () => {
+    expect(isMissingThemeError('FAILED TO FIND EXTENSION')).toBe(true);
+  });
+
+  test('returns false for unrelated errors', () => {
+    expect(isMissingThemeError('Network error')).toBe(false);
+  });
+
+  test('returns false for non-string input', () => {
+    expect(isMissingThemeError(null)).toBe(false);
+    expect(isMissingThemeError(undefined)).toBe(false);
   });
 });

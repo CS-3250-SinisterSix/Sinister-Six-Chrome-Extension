@@ -114,3 +114,61 @@ export function sortThemes(links, mode, metadata = {}) {
       return copy;
   }
 }
+
+export function getDropdownAction(selectedValue) {
+  if (selectedValue === DEFAULT_ID) {
+    return { action: 'revert' };
+  }
+
+  if (
+    typeof selectedValue === 'string' &&
+    selectedValue.includes('https://chromewebstore.google.com')
+  ) {
+    return { action: 'open-link', url: selectedValue };
+  }
+
+  return { action: 'apply', themeId: selectedValue };
+}
+
+export function getToggleOutcome(themes) {
+  const activeTheme = themes.find((t) => t.enabled);
+  const inactiveTheme = themes.find((t) => !t.enabled);
+
+  if (activeTheme) {
+    return {
+      action: 'disable',
+      targetId: activeTheme.id,
+      newState: {
+        currentThemeId: DEFAULT_ID,
+        currentThemeName: 'Default Theme',
+        isDefault: true,
+      },
+    };
+  }
+
+  if (inactiveTheme) {
+    return {
+      action: 'enable',
+      targetId: inactiveTheme.id,
+      newState: {
+        currentThemeId: inactiveTheme.id,
+        currentThemeName: inactiveTheme.name,
+        isDefault: false,
+      },
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Determines whether an error message indicates a missing Chrome theme.
+ * @param {string} message
+ * @returns {boolean}
+ */
+export function isMissingThemeError(message) {
+  return (
+    typeof message === 'string' &&
+    message.toLowerCase().includes('find extension')
+  );
+}
