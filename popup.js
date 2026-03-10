@@ -13,6 +13,7 @@ import { showConfirm } from './src/ui.js';
 import {
   extractName,
   detectCurrentState,
+  selectRandomTheme,
   DEFAULT_ID,
 } from './src/popupLogic.js';
 
@@ -27,6 +28,8 @@ const delBtn = document.getElementById('del');
 const toggleBtn = document.getElementById('toggle');
 const infoTip = document.getElementById('info');
 const clearAllBtn = document.getElementById('clearAll');
+const randomBtn = document.getElementById('randomTheme');
+const downloadBtn = document.getElementById('downloadTheme');
 
 /**
  * Renders the current theme state into the popup UI.
@@ -268,6 +271,30 @@ async function init() {
 
   dropdown.addEventListener('change', handleDropdownChange);
   toggleBtn.addEventListener('click', handleThemeToggle);
+
+  downloadBtn.addEventListener('click', () => {
+    window.open(
+      'https://chromewebstore.google.com/category/themes',
+      '_blank',
+      'noopener'
+    );
+  });
+
+  randomBtn.addEventListener('click', async () => {
+    const result = await chrome.storage.local.get(['links']);
+    const themeLinks = result.links || [];
+
+    if (themeLinks.length === 0) {
+      showNotice('No themes in your collection yet.', 'info');
+      return;
+    }
+
+    const chosen = selectRandomTheme(themeLinks, dropdown.value);
+    if (!chosen) return;
+
+    dropdown.value = chosen;
+    await handleDropdownChange();
+  });
 
   addBtn.addEventListener('click', async () => {
     const result = await chrome.storage.local.get(['links']);
