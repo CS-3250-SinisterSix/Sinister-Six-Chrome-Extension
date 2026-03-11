@@ -16,6 +16,9 @@ import {
   selectRandomTheme,
   sortThemes,
   DEFAULT_ID,
+  getDropdownAction,
+  getToggleOutcome,
+  isMissingThemeError,
 } from './src/popupLogic.js';
 
 const STORAGE_KEY = 'themeState';
@@ -159,14 +162,16 @@ async function handleDropdownChange() {
   const selectedName = selectedOption.textContent;
 
   try {
-    if (selectedValue === DEFAULT_ID) {
+        const action = getDropdownAction(selectedValue);
+
+    if (action.action === 'revert') {
       await revertThemeInChrome();
       revertTheme();
-    } else if (selectedValue.includes('https://chromewebstore.google.com')) {
-      window.open(selectedValue, '_blank', 'noopener');
-    } else {
-      await applyThemeInChrome(selectedValue);
-      applyTheme(selectedValue);
+    } else if (action.action === 'open-link') {
+      window.open(action.url, '_blank', 'noopener');
+    } else if (action.action === 'apply') {
+      await applyThemeInChrome(action.themeId);
+      applyTheme(action.themeId);
     }
 
     const newState = {
@@ -193,8 +198,7 @@ async function handleDropdownChange() {
   } catch (err) {
     console.error('Theme change failed:', err);
 
-    const isNotFound =
-      err.message && err.message.toLowerCase().includes('find extension');
+    const isNotFound = isMissingThemeError(err.message);
 
     if (isNotFound) {
       showNotice(
@@ -217,14 +221,17 @@ async function handleDropdownChange() {
 async function handleThemeToggle() {
   const themes = await getInstalledThemes();
 
-  const activeTheme = themes.find((t) => t.enabled);
-  const inactiveTheme = themes.find((t) => !t.enabled);
+    try {
+    const outcome = getToggleOutcome(themes);
 
-  try {
-    let newState;
+    if (!outcome) {
+      return;
+    }
 
-    if (activeTheme) {
-      chrome.management.setEnabled(activeTheme.id, false, () => {
+    const { action, targetId, newState } = outcome;
+
+    if (action === 'disable') {
+      chrome.management.setEnabled(targetId, false, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
         } else {
@@ -232,29 +239,15 @@ async function handleThemeToggle() {
         }
       });
       revertTheme();
-
-      newState = {
-        currentThemeId: DEFAULT_ID,
-        currentThemeName: 'Default Theme',
-        isDefault: true,
-      };
-    } else if (inactiveTheme) {
-      chrome.management.setEnabled(inactiveTheme.id, true, () => {
+    } else if (action === 'enable') {
+      chrome.management.setEnabled(targetId, true, () => {
         if (chrome.runtime.lastError) {
           console.error(chrome.runtime.lastError);
         } else {
           console.log('Extension disabled!');
         }
       });
-      applyTheme(inactiveTheme.id);
-
-      newState = {
-        currentThemeId: inactiveTheme.id,
-        currentThemeName: inactiveTheme.name,
-        isDefault: false,
-      };
-    } else {
-      return;
+      applyTheme(targetId);
     }
 
     await saveState(newState);
