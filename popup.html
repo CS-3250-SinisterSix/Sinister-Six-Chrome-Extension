@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>The Juggler</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        width: 360px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #2d2d2d;
+      }
+
+      .popup {
+        padding: 20px;
+      }
+
+      /* Header */
+      .header {
+        text-align: center;
+        margin-bottom: 18px;
+      }
+
+      .header h1 {
+        font-size: 22px;
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: 0.5px;
+      }
+
+      .header p {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.75);
+        margin-top: 2px;
+      }
+
+      /* Card */
+      .card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      }
+
+      /* Dropdown */
+      .field-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #888;
+        margin-bottom: 6px;
+      }
+
+      select {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        background: #fafafa;
+        color: #333;
+        cursor: pointer;
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+
+      select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+      }
+
+      select:hover {
+        border-color: #bbb;
+      }
+
+      /* Sort row */
+      .sort-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+
+      .sort-row .field-label {
+        margin-bottom: 0;
+      }
+
+      .sort-select {
+        width: auto;
+        padding: 4px 28px 4px 8px;
+        font-size: 11px;
+        border-width: 1px;
+        border-radius: 6px;
+        background-position: right 6px center;
+      }
+
+      /* Status area */
+      .status-area {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+        padding: 10px 12px;
+        background: #f7f7f9;
+        border-radius: 10px;
+      }
+
+      .status-label {
+        font-size: 13px;
+        color: #555;
+      }
+
+      .status-label strong {
+        color: #2d2d2d;
+      }
+
+      .indicator {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .indicator--default {
+        background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+        color: #4338ca;
+      }
+
+      .indicator--custom {
+        background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+        color: #065f46;
+      }
+
+      /* Notice / Error */
+      .notice {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .notice--error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+      }
+
+      .notice--info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+      }
+
+      .notice a {
+        color: inherit;
+        font-weight: 700;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+
+      .notice a:hover {
+        opacity: 0.8;
+      }
+
+      /* Info tip */
+      .info-tip {
+        margin-top: 10px;
+        padding: 8px 12px;
+        background: #fefce8;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        font-size: 11px;
+        color: #92400e;
+        line-height: 1.5;
+      }
+
+      /* Divider */
+      .divider {
+        height: 1px;
+        background: #eee;
+        margin: 14px 0;
+      }
+
+      /* Web Store link */
+      .store-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        padding: 10px;
+        font-size: 13px;
+        font-family: inherit;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(135deg, #f97316, #ec4899);
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition:
+          transform 0.15s,
+          box-shadow 0.15s;
+      }
+
+      .delete-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        width: 100%;
+        padding: 10px;
+        font-size: 13px;
+        font-family: inherit;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(135deg, #f94316, #ff0000);
+        border: none;
+        border-radius: 10px;
+        margin-top: 8px;
+        cursor: pointer;
+        transition:
+          transform 0.15s,
+          box-shadow 0.15s;
+      }
+
+      .button-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .button-row .store-link {
+        flex: 1; /* makes them equal width */
+      }
+
+      .store-link:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+      }
+
+      .store-link:active {
+        transform: translateY(0);
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+      }
+
+      .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+      }
+
+      .modal-content {
+        position: relative;
+        background: white;
+        padding: 18px;
+        border-radius: 12px;
+        width: 85%;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        text-align: center;
+      }
+
+      .modal-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .modal-buttons button {
+        flex: 1;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="popup">
+      <div class="header">
+        <h1>The Juggler</h1>
+        <p>Manage your Chrome themes</p>
+      </div>
+
+      <div class="card">
+        <div class="sort-row">
+          <label class="field-label" for="themeDropdown"
+            >Theme Collection</label
+          >
+          <select id="sortDropdown" class="sort-select">
+            <option value="alphabetical">A–Z</option>
+            <option value="recentlyAdded">Recently Added</option>
+            <option value="recentlyUsed">Recently Used</option>
+          </select>
+        </div>
+        <select id="themeDropdown"></select>
+
+        <div class="status-area">
+          <span class="status-label"
+            >Current: <strong id="currentThemeName">Loading...</strong></span
+          >
+          <span id="themeIndicator" class="indicator"></span>
+        </div>
+
+        <div id="noticeArea" hidden></div>
+
+        <p id="info" class="info-tip" hidden>
+          The current theme hasn't been added to your collection yet. Add it
+          with the "Add Current Theme" Button!
+        </p>
+
+        <div class="divider"></div>
+        <div class="button-row">
+          <button id="toggle" class="store-link">Toggle Theme</button>
+          <button id="randomTheme" class="store-link">Random Theme</button>
+        </div>
+        <div class="button-row">
+          <button id="add" class="store-link" hidden>Add Current Theme</button>
+          <button id="del" class="store-link" hidden>
+            Remove Current Theme
+          </button>
+        </div>
+        <div class="button-row">
+          <button id="downloadTheme" class="store-link">Themes Store</button>
+        </div>
+      </div>
+      <button id="clearAll" class="delete-button">Clear Collection</button>
+    </div>
+
+    <div id="confirmModal" class="modal" hidden>
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <p id="confirmMessage"></p>
+        <div class="modal-buttons">
+          <button id="confirmYes" class="store-link">Yes</button>
+          <button id="confirmNo" class="store-link">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

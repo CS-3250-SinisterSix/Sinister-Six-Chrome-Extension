@@ -1,0 +1,11 @@
+{
+  "name": "The Juggler",
+  "description": "The Juggler juggles your chrome themes so you can access them quickly and easily",
+  "version": "0.01",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "permissions": ["management", "storage"]
+}

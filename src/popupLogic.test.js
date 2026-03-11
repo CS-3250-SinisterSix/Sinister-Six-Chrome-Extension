@@ -1,0 +1,334 @@
+import {
+  extractName,
+  detectCurrentState,
+  sortThemes,
+  DEFAULT_ID,
+  SORT_MODES,
+  selectRandomTheme,
+  getDropdownAction,
+  getToggleOutcome,
+  isMissingThemeError,
+} from './popupLogic.js';
+
+describe('extractName', () => {
+  test('extracts and formats a chrome web store theme name', () => {
+    const link =
+      'https://chromewebstore.google.com/detail/dark-theme/abcdefghijklmnop';
+    expect(extractName(link)).toBe('Dark Theme');
+  });
+
+  test('handles multi-word hyphenated names', () => {
+    const link =
+      'https://chromewebstore.google.com/detail/super-dark-theme/abcdefghijklmnop';
+    expect(extractName(link)).toBe('Super Dark Theme');
+  });
+});
+
+describe('detectCurrentState', () => {
+  test('returns active theme when one is enabled', () => {
+    const themes = [
+      { id: 'a', name: 'A', enabled: false },
+      { id: 'b', name: 'B', enabled: true },
+    ];
+    expect(detectCurrentState(themes)).toEqual({
+      currentThemeId: 'b',
+      currentThemeName: 'B',
+      isDefault: false,
+    });
+  });
+
+  test('returns default state when none are enabled', () => {
+    const themes = [{ id: 'a', name: 'A', enabled: false }];
+    expect(detectCurrentState(themes)).toEqual({
+      currentThemeId: DEFAULT_ID,
+      currentThemeName: 'Default Theme',
+      isDefault: true,
+    });
+  });
+
+  test('returns default state when list is empty', () => {
+    expect(detectCurrentState([])).toEqual({
+      currentThemeId: DEFAULT_ID,
+      currentThemeName: 'Default Theme',
+      isDefault: true,
+    });
+  });
+});
+describe('SORT_MODES', () => {
+  test('has all expected sort mode values', () => {
+    expect(SORT_MODES.ALPHABETICAL).toBe('alphabetical');
+    expect(SORT_MODES.RECENTLY_ADDED).toBe('recentlyAdded');
+    expect(SORT_MODES.RECENTLY_USED).toBe('recentlyUsed');
+  });
+});
+
+describe('sortThemes', () => {
+  const linkA = 'https://chromewebstore.google.com/detail/alpha-theme/id1';
+  const linkB = 'https://chromewebstore.google.com/detail/beta-theme/id2';
+  const linkC = 'https://chromewebstore.google.com/detail/charlie-theme/id3';
+
+  const links = [linkC, linkA, linkB];
+
+  test('does not mutate the original array', () => {
+    const original = [linkC, linkA, linkB];
+    const frozen = [...original];
+    sortThemes(original, SORT_MODES.ALPHABETICAL);
+    expect(original).toEqual(frozen);
+  });
+
+  test('returns a new array instance', () => {
+    const result = sortThemes(links, SORT_MODES.ALPHABETICAL);
+    expect(result).not.toBe(links);
+  });
+
+  test('returns an empty array when given an empty array', () => {
+    expect(sortThemes([], SORT_MODES.ALPHABETICAL)).toEqual([]);
+    expect(sortThemes([], SORT_MODES.RECENTLY_ADDED)).toEqual([]);
+    expect(sortThemes([], SORT_MODES.RECENTLY_USED)).toEqual([]);
+  });
+
+  describe('alphabetical', () => {
+    test('sorts by theme name A-Z', () => {
+      const result = sortThemes(links, SORT_MODES.ALPHABETICAL);
+      expect(result).toEqual([linkA, linkB, linkC]);
+    });
+
+    test('is case-insensitive', () => {
+      const upper = 'https://chromewebstore.google.com/detail/ZEBRA-theme/id4';
+      const lower =
+        'https://chromewebstore.google.com/detail/aardvark-theme/id5';
+      const result = sortThemes([upper, lower], SORT_MODES.ALPHABETICAL);
+      // Aardvark before Zebra
+      expect(result).toEqual([lower, upper]);
+    });
+  });
+
+  describe('recentlyAdded', () => {
+    test('sorts by addedAt descending (newest first)', () => {
+      const metadata = {
+        [linkA]: { addedAt: 100 },
+        [linkB]: { addedAt: 300 },
+        [linkC]: { addedAt: 200 },
+      };
+      const result = sortThemes(links, SORT_MODES.RECENTLY_ADDED, metadata);
+      expect(result).toEqual([linkB, linkC, linkA]);
+    });
+
+    test('treats missing metadata as 0 (oldest)', () => {
+      const metadata = {
+        [linkB]: { addedAt: 500 },
+      };
+      const result = sortThemes(links, SORT_MODES.RECENTLY_ADDED, metadata);
+      expect(result[0]).toBe(linkB);
+    });
+
+    test('handles null addedAt values', () => {
+      const metadata = {
+        [linkA]: { addedAt: null },
+        [linkB]: { addedAt: 100 },
+      };
+      const result = sortThemes(
+        [linkA, linkB],
+        SORT_MODES.RECENTLY_ADDED,
+        metadata
+      );
+      expect(result).toEqual([linkB, linkA]);
+    });
+  });
+
+  describe('recentlyUsed', () => {
+    test('sorts by lastUsed descending (most recent first)', () => {
+      const metadata = {
+        [linkA]: { lastUsed: 500 },
+        [linkB]: { lastUsed: 100 },
+        [linkC]: { lastUsed: 300 },
+      };
+      const result = sortThemes(links, SORT_MODES.RECENTLY_USED, metadata);
+      expect(result).toEqual([linkA, linkC, linkB]);
+    });
+
+    test('treats missing metadata as 0 (least recent)', () => {
+      const metadata = {
+        [linkA]: { lastUsed: 200 },
+      };
+      const result = sortThemes(links, SORT_MODES.RECENTLY_USED, metadata);
+      expect(result[0]).toBe(linkA);
+    });
+
+    test('handles undefined lastUsed values', () => {
+      const metadata = {
+        [linkA]: { lastUsed: undefined },
+        [linkB]: { lastUsed: 100 },
+      };
+      const result = sortThemes(
+        [linkA, linkB],
+        SORT_MODES.RECENTLY_USED,
+        metadata
+      );
+      expect(result).toEqual([linkB, linkA]);
+    });
+  });
+
+  describe('unknown mode', () => {
+    test('returns a copy in original order for unknown sort mode', () => {
+      const result = sortThemes(links, 'unknown');
+      expect(result).toEqual(links);
+      expect(result).not.toBe(links);
+    });
+  });
+});
+
+describe('selectRandomTheme', () => {
+  const themeA = 'https://chromewebstore.google.com/detail/alpha/id1';
+  const themeB = 'https://chromewebstore.google.com/detail/beta/id2';
+  const themeC = 'https://chromewebstore.google.com/detail/charlie/id3';
+
+  test('returns null for empty array', () => {
+    expect(selectRandomTheme([])).toBeNull();
+  });
+
+  test('returns null for non-array input', () => {
+    expect(selectRandomTheme(null)).toBeNull();
+    expect(selectRandomTheme(undefined)).toBeNull();
+  });
+
+  test('returns the only theme when one exists', () => {
+    expect(selectRandomTheme([themeA])).toBe(themeA);
+  });
+
+  test('returns the only theme even if it is the active theme', () => {
+    expect(selectRandomTheme([themeA], themeA)).toBe(themeA);
+  });
+
+  test('does not return the active theme when multiple exist', () => {
+    // Use a fixed randomFn that would pick index 0
+    const fixedRandom = () => 0;
+    const result = selectRandomTheme(
+      [themeA, themeB, themeC],
+      themeA,
+      fixedRandom
+    );
+    expect(result).not.toBe(themeA);
+    expect([themeB, themeC]).toContain(result);
+  });
+
+  test('returns a theme from the array when multiple exist', () => {
+    const fixedRandom = () => 0.99;
+    const result = selectRandomTheme(
+      [themeA, themeB, themeC],
+      null,
+      fixedRandom
+    );
+    expect([themeA, themeB, themeC]).toContain(result);
+  });
+
+  test('uses injected randomFn to pick deterministically', () => {
+    // randomFn returning 0 should pick first candidate
+    const result = selectRandomTheme([themeA, themeB], null, () => 0);
+    expect(result).toBe(themeA);
+  });
+
+  test('does not mutate the original array', () => {
+    const themes = [themeA, themeB, themeC];
+    const copy = [...themes];
+    selectRandomTheme(themes, themeA);
+    expect(themes).toEqual(copy);
+  });
+
+  test('handles active theme not found in collection', () => {
+    const fixedRandom = () => 0;
+    const result = selectRandomTheme(
+      [themeA, themeB],
+      'not-in-list',
+      fixedRandom
+    );
+    expect(result).toBe(themeA);
+  });
+
+  test('falls back to full list if all themes match active', () => {
+    // Edge case: activeTheme matches the only entries after filter => empty candidates
+    // This can't actually happen with string comparison since filter removes exact matches,
+    // but test the fallback path by having activeTheme = null
+    const result = selectRandomTheme([themeA], null, () => 0);
+    expect(result).toBe(themeA);
+  });
+});
+
+describe('getDropdownAction', () => {
+  test('returns revert for default selection', () => {
+    expect(getDropdownAction(DEFAULT_ID)).toEqual({ action: 'revert' });
+  });
+
+  test('returns open-link for chrome web store urls', () => {
+    const url = 'https://chromewebstore.google.com/detail/dark-theme/abc';
+    expect(getDropdownAction(url)).toEqual({
+      action: 'open-link',
+      url,
+    });
+  });
+
+  test('returns apply for theme ids', () => {
+    expect(getDropdownAction('theme123')).toEqual({
+      action: 'apply',
+      themeId: 'theme123',
+    });
+  });
+});
+
+describe('getToggleOutcome', () => {
+  test('returns disable outcome when an active theme exists', () => {
+    const themes = [
+      { id: 'a', name: 'Theme A', enabled: true },
+      { id: 'b', name: 'Theme B', enabled: false },
+    ];
+
+    expect(getToggleOutcome(themes)).toEqual({
+      action: 'disable',
+      targetId: 'a',
+      newState: {
+        currentThemeId: DEFAULT_ID,
+        currentThemeName: 'Default Theme',
+        isDefault: true,
+      },
+    });
+  });
+
+  test('returns enable outcome when no active theme exists but inactive theme does', () => {
+    const themes = [
+      { id: 'b', name: 'Theme B', enabled: false },
+    ];
+
+    expect(getToggleOutcome(themes)).toEqual({
+      action: 'enable',
+      targetId: 'b',
+      newState: {
+        currentThemeId: 'b',
+        currentThemeName: 'Theme B',
+        isDefault: false,
+      },
+    });
+  });
+
+  test('returns null when no themes exist', () => {
+    expect(getToggleOutcome([])).toBeNull();
+  });
+});
+
+describe('isMissingThemeError', () => {
+  test('returns true when message contains "find extension"', () => {
+    expect(isMissingThemeError('Cannot find extension')).toBe(true);
+  });
+
+  test('is case insensitive', () => {
+    expect(isMissingThemeError('FAILED TO FIND EXTENSION')).toBe(true);
+  });
+
+  test('returns false for unrelated errors', () => {
+    expect(isMissingThemeError('Network error')).toBe(false);
+  });
+
+  test('returns false for non-string input', () => {
+    expect(isMissingThemeError(null)).toBe(false);
+    expect(isMissingThemeError(undefined)).toBe(false);
+  });
+});
